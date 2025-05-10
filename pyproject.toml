@@ -7,6 +7,10 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
+homepage = "https://github.com/omarbenhamid/django-mcp-server"
+repository = "https://github.com/omarbenhamid/django-mcp-server"
+documentation = "https://github.com/omarbenhamid/django-mcp-server"
+keywords = ["django", "mcp", "model context protocol", "tools"]
 requires-python = ">=3.10"
 dependencies = [
     "mcp (>=1.8.0)",
@@ -17,3 +21,6 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.packages]]
+include = "mcp_server"
