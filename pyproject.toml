@@ -1,0 +1,19 @@
+[project]
+name = "django-mcp-server"
+version = "0.1.0"
+description = "A WSGI- and ASGI-compatible Django implementation of the Model Context Protocol server"
+authors = [
+    {name = "Omar BENHAMID",email = "omar.benhamid@smart-gts.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp (>=1.8.0)",
+    "django (>=4.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
