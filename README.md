@@ -100,23 +100,33 @@ async def increment_species(name: str, amount: int = 1) -> int:
 
 ## Testing
 
-You can test your MCP server using any **MCP Inspector tool** or a compatible MCP Client.
+By default, your MCP Server will be available as a 
+[stateless streamable http transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) 
+endpoint at <your_django_server>/mcp (ex. http://localhost:8000/mcp) (*without / at the end !).
+
+There are many ways to test :
+
+1. Using the test [MCP Client script : test/test_mcp_client.py](test/test_mcp_client.py)  
+2. You can test using [MCP Inspector tool](https://github.com/modelcontextprotocol/inspector) 
+3. or any compatible MCP Client.
 
 ---
 
-## Integration with Google ADK Agent
+## Integration with Agentic Frameworks and MCP Clients
 
-You can easily plug your MCP server endpoint into a **Google ADK agent** or similar MCP-compatible AI clients.
+You can easily plug your MCP server endpoint into any agentic framework supporting MCP streamable http servers.
+Refer to this [list of clients](https://modelcontextprotocol.io/clients)
 
 ---
 
 ## Roadmap
 
 - ✅ **Stateless streamable HTTP transport** (implemented)
-- 🔜 **Stateful transport using Django sessions**
+- 🔜 **STDIO transport integration for dev configuration (ex. Claude Desktop)**
+- 🔜 ****
+- 🔜 **Stateful streamable HTTP transport using Django sessions**
 - 🔜 **SSE endpoint integration (requires ASGI)**
 - 🔜 **Improved error management and logging**
-- 🔜 **Publish on PyPI and list on Awesome MCP / Django modules**
 
 ---
 

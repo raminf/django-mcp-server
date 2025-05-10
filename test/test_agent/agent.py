@@ -1,26 +1,10 @@
-import datetime
-from zoneinfo import ZoneInfo
-from google.adk.agents import Agent
 
-
-
-# ./adk_agent_samples/mcp_agent/agent.py
 from google.adk.agents.llm_agent import LlmAgent
-from google.adk.tools.mcp_tool.mcp_session_manager import SseServerParams, StreamableHTTPServerParams
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
+from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters, StreamableHTTPServerParams
 
 
-async def create_agent():
-  """Gets tools from MCP Server."""
-  tools, exit_stack = await MCPToolset.from_server(
-      connection_params=StreamableHTTPServerParams(
-       #SseServerParams(
-          # TODO: IMPORTANT! Change the path below to your remote MCP Server path
-          url="http://localhost:8000/mcp"
-      )
-  )
 
-  agent = LlmAgent(
+root_agent = LlmAgent(
     name="weather_time_agent",
     model="gemini-2.0-flash",
     description=(
@@ -29,9 +13,9 @@ async def create_agent():
     instruction=(
         "You are a helpful agent who can answer user questions about the time and weather in a city."
     ),
-    tools=tools,
+    tools=[MCPToolset(
+      connection_params=StreamableHTTPServerParams(
+          url="http://localhost:8000/mcp"
+      )
+    )],
   )
-  return agent, exit_stack
-
-
-root_agent = create_agent()
