@@ -1,5 +1,3 @@
-from mcp.server import FastMCP
-
 from mcp_server import MCPToolset
 from .models import Bird
 
@@ -16,6 +14,19 @@ class SpeciesCount(MCPToolset):
         """List all species with a search string, returns the name and count of each species found"""
         return list(self._search_birds(search_string).values('species', 'count'))
 
+    def increment_species(self, name: str, amount: int = 1) -> int:
+        """
+        Increment the count of a bird species by a specified amount and returns tehe new count.
+        The first argument ios species name the second is the mouunt to increment with (1) by default.
+        """
+        ret = self._search_birds(name).first()
+        if ret is None:
+            ret = Bird.objects.create(species=name)
+
+        ret.count += amount
+        ret.save()
+
+        return ret.count
 
 # For more advanced low level usage, you can use the mcp_server directly
 from mcp_server import mcp_server as mcp
@@ -29,17 +40,3 @@ async def get_species_count(name : str) -> int:
 
     return ret.count
 
-@mcp.tool()
-async def increment_species(name : str, amount: int = 1) -> int:
-    """
-    Increment the count of a bird species by a specified amount and returns tehe new count.
-    The first argument ios species name the second is the mouunt to increment with (1) by default.
-    """
-    ret = await Bird.objects.filter(species__icontains=name).afirst()
-    if ret is None:
-        ret = await Bird.objects.acreate(species=name)
-
-    ret.count += amount
-    await ret.asave()
-
-    return ret.count

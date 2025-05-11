@@ -12,6 +12,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from django.http import HttpResponse
 from asgiref.compatibility import guarantee_single_callable
 from asgiref.wsgi import WsgiToAsgi
+from mcp.types import AnyFunction, ToolAnnotations
 from pyarrow._fs import ABC
 from starlette.types import Scope, Receive, Send
 from starlette.datastructures import Headers
@@ -83,6 +84,27 @@ async def call_starlette_handler(django_request, session_manager):
     return response
 
 
+class _ToolsetMethodCaller:
+
+    def __init__(self, class_, method_name, context_kwarg, forward_context_kwarg):
+        self.class_ = class_
+        self.method_name = method_name
+        self.context_kwarg = context_kwarg
+        self.forward_context_kwarg = forward_context_kwarg
+
+    def __call__(self, *args, **kwargs):
+        # Get the class instance
+        instance = self.class_(context=kwargs[self.context_kwarg])
+
+        # Get the method
+        method = sync_to_async(getattr(instance, self.method_name))
+        if not self.forward_context_kwarg:
+            # Remove the context kwarg from kwargs
+            del kwargs[self.context_kwarg]
+
+        return method(*args, **kwargs)
+
+
 # FIXME: shall I reimplement the necessary without the
 # Stuff pulled to support embedded server ?
 class DjangoMCP(FastMCP):
@@ -108,6 +130,19 @@ class DjangoMCP(FastMCP):
 
         return anyio.run(call_starlette_handler,request, self.session_manager)
 
+    def register_mcptoolset_cls(self, cls):
+        instance = cls()
+        # ITerate all the methods whose name does not start with _ and register them with mcp_server.add_tool
+        for name, method in inspect.getmembers(instance, predicate=inspect.ismethod):
+            if not callable(method) or name.startswith("_"): continue
+            tool = self._tool_manager.add_tool(sync_to_async(method))
+            if tool.context_kwarg is None:
+                forward_context = False
+                tool.context_kwarg = "_context"
+            else:
+                forward_context = True
+            tool.fn = _ToolsetMethodCaller(cls, name, tool.context_kwarg, forward_context)
+
 
 global_mcp_server = DjangoMCP(**getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', {}))
 
@@ -131,22 +166,12 @@ class MCPToolset(metaclass=ToolsetMeta):
     """You can define your own instance of DjangoMCP here """
     mcp_server : DjangoMCP = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, context=None):
+        self.context = context
         if self.mcp_server is None:
             self.mcp_server = global_mcp_server
-        # ITerate all the methods whose name does not start with _ and register them with mcp_server.add_tool
-        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
-            if callable(method) and not name.startswith("_"):
-                self.mcp_server.add_tool(sync_to_async(method))
-
-        super().__init__(*args, **kwargs)
 
 
 def init():
-    # Instanciate all the MCPToolsets
-    # TODO in some way register tools taht will actuallhy instanceiate the calss
-    # for each request and add the django request object to allow "self.request"
-    #    to work from within the tool.
     for cls in ToolsetMeta.registry.values():
-        # TODO : Do not instnaciate but register the tool with an instance of "ToolCaller" that does the above
-        cls()
+        (cls.mcp_server or global_mcp_server).register_mcptoolset_cls(cls)

@@ -67,9 +67,49 @@ By default, the MCP endpoint will be available at `/mcp`.
 
 ### 3️⃣ Define MCP Tools
 
-Create a file `mcp.py` in your Django app.
+Create a file `mcp.py` in your Django app and create a sub class of MCPToolset : each method that does
+not start with "_" will be published as a tool.
 
 Example:
+```python
+from mcp_server import MCPToolset
+from .models import Bird
+
+class SpeciesCount(MCPToolset):
+    mcp_server = None # None to use the global mcp_server or specify a local one, if so you need to register it in urls.py see readme
+
+    def _search_birds(self, search_string: str | None = None) -> Bird:
+        """Get the queryset for birds,
+        methods starting with _ are not registered as tools"""
+        return Bird.objects.all() if search_string is None else Bird.objects.filter(species__icontains=search_string)
+
+    def list_species(self, search_string: str | None = None) -> list[dict]:
+        """List all species with a search string, returns the name and count of each species found"""
+        return list(self._search_birds(search_string).values('species', 'count'))
+
+    def increment_species(self, name: str, amount: int = 1) -> int:
+        """
+        Increment the count of a bird species by a specified amount and returns tehe new count.
+        The first argument ios species name the second is the mouunt to increment with (1) by default.
+        """
+        ret = self._search_birds(name).first()
+        if ret is None:
+            ret = Bird.objects.create(species=name)
+
+        ret.count += amount
+        ret.save()
+
+        return ret.count
+```
+
+---
+
+## Advanced topics
+
+### Use low level mcp server annotation
+
+You can import the DjangoMCP server instance and use FastMCP annotations to declare
+mcp tools and resources :
 
 ```python
 from mcp_server import mcp_server as mcp
@@ -99,11 +139,7 @@ async def increment_species(name: str, amount: int = 1) -> int:
     return ret.count
 ```
 
-⚠️ **Important**: Always use **Django's async ORM API**.
-
----
-
-## Advanced topics
+⚠️ **Important**: Always use **Django's async ORM API** in this case.
 
 ### Customize the default MCP server settings
 
