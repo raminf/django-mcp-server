@@ -1,5 +1,10 @@
 # Django MCP Server
 
+[![PyPI version](https://img.shields.io/pypi/v/django-mcp-server)](https://pypi.org/project/django-mcp-server/)
+![License](https://img.shields.io/pypi/l/django-mcp-server)
+[![Published on Django Packages](https://img.shields.io/badge/Published%20on-Django%20Packages-0c3c26)](https://djangopackages.org/packages/p/django-mcp-server/)
+![Python versions](https://img.shields.io/pypi/pyversions/django-mcp-server)
+
 **Django MCP Server** is an implementation of the **Model Context Protocol (MCP)** extension for Django. This module allows **MCP Clients** and **AI agents** to interact with **any Django application** seamlessly.
 
 ✅ Works inside your existing **WSGI** application.  
@@ -97,6 +102,49 @@ async def increment_species(name: str, amount: int = 1) -> int:
 ⚠️ **Important**: Always use **Django's async ORM API**.
 
 ---
+
+## Advanced topics
+
+### Customize the default MCP server settings
+
+In `settings.py` you can initialize the `DJANGO_MCP_GLOBAL_SERVER_CONFIG` parameter. These will be 
+passed to the `MCPServer` server during initialization
+```python
+DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
+    "name":"mymcp",
+    "instructions": "Some instructions to use this server"
+}
+```
+
+
+### Authorization
+
+Using [DRF annotations](https://www.django-rest-framework.org/api-guide/views/#api_view) you can enable authorization in urls.py :
+```python
+path("mcp", api_view(['GET','POST'])(permission_classes([IsAuthenticated])(MCPServerStreamableHttpView.as_view())))
+```
+
+To conform to MCP specifications you should support OAuth2, so you should integrate for example 
+[django-oauth-toolkit](https://github.com/jazzband/django-oauth-toolkit) for that.
+
+### Secondary MCP endpoint
+in `mcp.py`
+```python
+
+second_mcp = DjangoMCP(name="altserver")
+
+@second_mcp.tools()
+async def my_tool():
+    ...
+```
+
+in urls.py 
+```python
+...
+    path("altmcp", MCPServerStreamableHttpView.as_view(mcp_server=second_server))
+...
+```
+
 
 ## Testing
 

@@ -15,12 +15,10 @@ from starlette.datastructures import Headers
 from io import BytesIO
 import asyncio
 
-# --- assuming your transport is imported as StreamableHTTPServerTransport
-# from yourmodule import StreamableHTTPServerTransport
 
 async def call_starlette_handler(django_request, session_manager):
     """
-    Adapts a Django request into a Starlette request and calls transport.handle_request.
+    Adapts a Django request into a Starlette request and calls session_manager.handle_request.
 
     Returns:
         A Django HttpResponse
@@ -77,10 +75,9 @@ async def call_starlette_handler(django_request, session_manager):
         status=status,
     )
     for key, value in headers.items():
-        response[key] = value #.decode("latin-1")
+        response[key] = value
 
     return response
-
 
 
 # FIXME: shall I reimplement the necessary without the
@@ -105,7 +102,7 @@ class DjangoMCP(FastMCP):
         return anyio.run(call_starlette_handler,request, self.session_manager)
 
 
-global_mcp_server = DjangoMCP(**settings.DJANGO_MCP_GLOBAL_SERVER_CONFIG) if getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', None) else None
+global_mcp_server = DjangoMCP(**getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', {}))
 
 
 
