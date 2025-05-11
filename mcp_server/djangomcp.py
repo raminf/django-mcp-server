@@ -1,6 +1,8 @@
+import inspect
 from functools import cached_property
 
 import anyio
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from mcp.server import FastMCP
 from mcp.server.sse import SseServerTransport
@@ -10,6 +12,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from django.http import HttpResponse
 from asgiref.compatibility import guarantee_single_callable
 from asgiref.wsgi import WsgiToAsgi
+from pyarrow._fs import ABC
 from starlette.types import Scope, Receive, Send
 from starlette.datastructures import Headers
 from io import BytesIO
@@ -84,6 +87,10 @@ async def call_starlette_handler(django_request, session_manager):
 # Stuff pulled to support embedded server ?
 class DjangoMCP(FastMCP):
 
+    def __init__(self, name=None, instructions=None):
+        # Prevent extra server settings as we do not use the embedded server
+        super().__init__(name or "django_mcp_server", instructions)
+
     @property
     def session_manager(self) -> StreamableHTTPSessionManager:
         return StreamableHTTPSessionManager(
@@ -105,40 +112,41 @@ class DjangoMCP(FastMCP):
 global_mcp_server = DjangoMCP(**getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', {}))
 
 
+class ToolsetMeta(type):
+    registry = {}
 
-"""
-    use : https://modelcontextprotocol.io/docs/concepts/transports#python-server
-    wuth custom transport
-
-    the server is self._mcp_server
-global_mcp_server = DjangoMCP(settings.DMCP_GLOBAL_SERVER_NAME) if getattr(settings, 'DMCP_GLOBAL_SERVER_NAME', None) else None
-
-
-
-mcp_server.streamable_http_app()
-Then mcp_server.session_manager
+    def __init__(cls, name, bases, namespace):
+        super().__init__(name, bases, namespace)
+        # Skip base class itself
+        if name != "MCPToolset":
+            ToolsetMeta.registry[name] = cls
 
 
-use StreamableHTTPSessionManager ?
+class MCPToolset(metaclass=ToolsetMeta):
+    """
+    Base class for MCP toolsets. This class provides a way to create tools that can be used with
+    the MCP server.
+    """
 
-or directly http_transport = StreamableHTTPServerTransport(
-            mcp_session_id=None,  # No session tracking in stateless mode
-            is_json_response_enabled=self.json_response,
-            event_store=None,  # No event store in stateless mode
-        )
+    """You can define your own instance of DjangoMCP here """
+    mcp_server : DjangoMCP = None
 
-        # Start server in a new task
-        async def run_stateless_server(
-            *, task_status: TaskStatus[None] = anyio.TASK_STATUS_IGNORED
-        ):
-            async with http_transport.connect() as streams:
-                read_stream, write_stream = streams
-                task_status.started()
-                await self.app.run(
-                    read_stream,
-                    write_stream,
-                    self.app.create_initialization_options(),
-                    stateless=True,
+    def __init__(self, *args, **kwargs):
+        if self.mcp_server is None:
+            self.mcp_server = global_mcp_server
+        # ITerate all the methods whose name does not start with _ and register them with mcp_server.add_tool
+        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
+            if callable(method) and not name.startswith("_"):
+                self.mcp_server.add_tool(sync_to_async(method))
+
+        super().__init__(*args, **kwargs)
 
 
-"""
+def init():
+    # Instanciate all the MCPToolsets
+    # TODO in some way register tools taht will actuallhy instanceiate the calss
+    # for each request and add the django request object to allow "self.request"
+    #    to work from within the tool.
+    for cls in ToolsetMeta.registry.values():
+        # TODO : Do not instnaciate but register the tool with an instance of "ToolCaller" that does the above
+        cls()
