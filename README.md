@@ -164,22 +164,21 @@ For this you need :
 and `/path/to/your/project/` is the path to your django project.
 
 
-```python
-{
-    "mcpServers": {
-        "gts": {
-            "command": "C:/Progs/anaconda3/envs/i4/python.exe",
-            "args": [
-                "C:/Git/gts/i4server/manage.py",
-                "stdio_server"
-            ]
-        }
-    }
-}
-```
-
 
 ## Advanced topics
+
+### Django Rest Framework Serializer integration
+
+You can annotate a tool with `drf_serialize_output(...)` to serialize its output using
+django rest framework, like : 
+
+```python
+from mcp_server import drf_serialize_output
+
+@drf_serialize_output(MyDRFSerializer)
+def my_function(args):
+    return MyInstance()
+```
 
 ### Use low level mcp server annotation
 

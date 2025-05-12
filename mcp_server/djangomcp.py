@@ -1,10 +1,12 @@
 import contextvars
+import functools
 import inspect
 from functools import cached_property
 
 import anyio
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.db.models import QuerySet
 from mcp.server import FastMCP, Server
 from mcp.server.fastmcp import Context
 from mcp.server.sse import SseServerTransport
@@ -21,6 +23,41 @@ from io import BytesIO
 import asyncio
 
 django_request_ctx = contextvars.ContextVar("django_request")
+
+
+def drf_serialize_output(serializer_class):
+    """
+    This annotation will process the tool result thorugh the given DRF serializer
+
+    ```
+    @drf_serialize_output(MyDRFSerializer)
+    def my_function(args):
+        return MyInstance()
+    ```
+
+
+    :param serializer_class:
+    :return:
+    """
+    def annotator(fn):
+        fn.__dmcp_drf_serializer = serializer_class
+        return fn
+    return annotator
+
+
+class _SyncToolCallWrapper:
+    def __init__(self, fn):
+        self.fn = fn
+        functools.update_wrapper(self, fn)
+
+    def __call__(self, *args, **kwargs):
+        ret = self.fn(*args, **kwargs)
+        if isinstance(ret, QuerySet):
+            ret = list(ret)
+        serializer_class = getattr(self.fn, '__dmcp_drf_serializer', None)
+        if serializer_class is not None:
+             ret = serializer_class(ret).data
+        return ret
 
 
 async def _call_starlette_handler(django_request: HttpRequest, session_manager: StreamableHTTPSessionManager):
@@ -100,7 +137,7 @@ class _ToolsetMethodCaller:
         instance = self.class_(context=kwargs[self.context_kwarg],
                                request=django_request_ctx.get())
         # Get the method
-        method = sync_to_async(getattr(instance, self.method_name))
+        method = sync_to_async(_SyncToolCallWrapper(getattr(instance, self.method_name)))
         if not self.forward_context_kwarg:
             # Remove the context kwarg from kwargs
             del kwargs[self.context_kwarg]
