@@ -1,15 +1,17 @@
+import contextvars
 import inspect
 from functools import cached_property
 
 import anyio
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from mcp.server import FastMCP
+from mcp.server import FastMCP, Server
+from mcp.server.fastmcp import Context
 from mcp.server.sse import SseServerTransport
 from mcp.server.streamable_http import StreamableHTTPServerTransport
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from asgiref.compatibility import guarantee_single_callable
 from asgiref.wsgi import WsgiToAsgi
 from mcp.types import AnyFunction, ToolAnnotations
@@ -19,15 +21,17 @@ from starlette.datastructures import Headers
 from io import BytesIO
 import asyncio
 
+django_request_ctx = contextvars.ContextVar("django_request")
 
-async def call_starlette_handler(django_request, session_manager):
+
+async def _call_starlette_handler(django_request: HttpRequest, session_manager: StreamableHTTPSessionManager):
     """
     Adapts a Django request into a Starlette request and calls session_manager.handle_request.
 
     Returns:
         A Django HttpResponse
     """
-
+    django_request_ctx.set(django_request)
     # Build ASGI scope
     scope: Scope = {
         "type": "http",
@@ -67,7 +71,7 @@ async def call_starlette_handler(django_request, session_manager):
             response_body.extend(message.get("body", b""))
 
     async with session_manager.run():
-    # Call transport
+        # Call transport
         await session_manager.handle_request(scope, receive, send)
 
     # Build Django HttpResponse
@@ -94,8 +98,8 @@ class _ToolsetMethodCaller:
 
     def __call__(self, *args, **kwargs):
         # Get the class instance
-        instance = self.class_(context=kwargs[self.context_kwarg])
-
+        instance = self.class_(context=kwargs[self.context_kwarg],
+                               request=django_request_ctx.get())
         # Get the method
         method = sync_to_async(getattr(instance, self.method_name))
         if not self.forward_context_kwarg:
@@ -127,8 +131,7 @@ class DjangoMCP(FastMCP):
         Handle a Django request and return a response.
         This method is called by the Django view when a request is received.
         """
-
-        return anyio.run(call_starlette_handler,request, self.session_manager)
+        return anyio.run(_call_starlette_handler, request, self.session_manager)
 
     def register_mcptoolset_cls(self, cls):
         instance = cls()
@@ -160,14 +163,28 @@ class ToolsetMeta(type):
 class MCPToolset(metaclass=ToolsetMeta):
     """
     Base class for MCP toolsets. This class provides a way to create tools that can be used with
-    the MCP server.
+    the built in MCP serfver in a declarative way.
+
+    ```
+    class MyAppTools(MCPToolset):
+        def my_tool(param : Type) -> ReturnType:
+            ...
+    ```
+
+    Any "private" method (ie. its name starting with _) will not be declared as a tool.
+    Any other method is published as an MCP Tool that MCP Clients can use.
+
+    During tool execution, self.request contains the origin django request, this allows for example
+    access to request.user ...
+
     """
 
     """You can define your own instance of DjangoMCP here """
     mcp_server: DjangoMCP = None
 
-    def __init__(self, context=None):
+    def __init__(self, context=None, request=None):
         self.context = context
+        self.request = request
         if self.mcp_server is None:
             self.mcp_server = global_mcp_server
 

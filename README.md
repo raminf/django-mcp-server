@@ -155,7 +155,7 @@ DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
 
 Using [DRF annotations](https://www.django-rest-framework.org/api-guide/views/#api_view) you can enable authorization in urls.py :
 ```python
-path("mcp", api_view(['GET','POST'])(permission_classes([IsAuthenticated])(MCPServerStreamableHttpView.as_view())))
+    path("mcp", api_view(['GET','POST'])(permission_classes([IsAuthenticated])(MCPServerStreamableHttpView.as_view())))
 ```
 
 To conform to MCP specifications you should support OAuth2, so you should integrate for example 
