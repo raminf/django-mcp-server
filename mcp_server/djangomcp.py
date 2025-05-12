@@ -164,7 +164,7 @@ class MCPToolset(metaclass=ToolsetMeta):
     """
 
     """You can define your own instance of DjangoMCP here """
-    mcp_server : DjangoMCP = None
+    mcp_server: DjangoMCP = None
 
     def __init__(self, context=None):
         self.context = context

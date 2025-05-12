@@ -3,14 +3,12 @@ from .models import Bird
 
 
 class SpeciesCount(MCPToolset):
-    mcp_server = None # None to use the global mcp_server or specify a local one, if so you need to register it in urls.py see readme
-
     def _search_birds(self, search_string: str | None = None) -> Bird:
         """Get the queryset for birds,
         methods starting with _ are not registered as tools"""
         return Bird.objects.all() if search_string is None else Bird.objects.filter(species__icontains=search_string)
 
-    def list_species(self, search_string: str | None = None) -> list[dict]:
+    def list_species(self, search_string: str = None) -> list[dict]:
         """List all species with a search string, returns the name and count of each species found"""
         return list(self._search_birds(search_string).values('species', 'count'))
 
