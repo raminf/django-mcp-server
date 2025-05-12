@@ -15,7 +15,6 @@ from django.http import HttpResponse, HttpRequest
 from asgiref.compatibility import guarantee_single_callable
 from asgiref.wsgi import WsgiToAsgi
 from mcp.types import AnyFunction, ToolAnnotations
-from pyarrow._fs import ABC
 from starlette.types import Scope, Receive, Send
 from starlette.datastructures import Headers
 from io import BytesIO

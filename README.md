@@ -8,7 +8,8 @@
 **Django MCP Server** is an implementation of the **Model Context Protocol (MCP)** extension for Django. This module allows **MCP Clients** and **AI agents** to interact with **any Django application** seamlessly.
 
 ✅ Works inside your existing **WSGI** application.  
-🚀 **Streamable HTTP transport (stateless)** is implemented. 
+🚀 Implements the standare stdio and **Streamable HTTP transport (stateless)** is implemented. 
+🤖 Any MCP Client, including Claude Desktop can interact with your application.
 
 Licensed under the **MIT License**.
 
@@ -101,6 +102,81 @@ class SpeciesCount(MCPToolset):
 ```
 
 ---
+
+### Use the MCP Tool
+
+The mcp tool is now published on your Django App at `/mcp` endpoint. You can 
+test it with the python mcp SDK :
+
+```python
+from mcp.client.streamable_http import streamablehttp_client
+from mcp import ClientSession
+
+
+async def main():
+    # Connect to a streamable HTTP server
+    async with streamablehttp_client("http://localhost:8000/mcp") as (
+        read_stream,
+        write_stream,
+        _,
+    ):
+        # Create a session using the client streams
+        async with ClientSession(read_stream, write_stream) as session:
+            # Initialize the connection
+            await session.initialize()
+            # Call a tool
+            tool_result = await session.call_tool("get_alerts", {"state": "NY"})
+            print(tool_result)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+Replace `http://localhost:8000/mcp` by the acutal Django host and run this cript.
+
+### Test in Claude Desktop
+
+You can [test MCP servers in Claude Desktop](https://modelcontextprotocol.io/quickstart/server). As for now
+claude desktop only supports local MCP Servers. So you need to have your app installed on the same machine, in a
+dev setting probably.
+
+For this you need :
+
+1. To install Claude Desktop from [claude.ai](https://claude.ai)
+2. Open File > Settings > Developer and click **Edit Config**
+3. Open `claude_desktop_config.json` and setup your MCP server :
+   ```json
+   {
+    "mcpServers": {
+        "test_django_mcp": {
+            "command": "/path/to/interpreter/python",
+            "args": [
+                "/path/to/your/project/manage.py",
+                "stdio_server"
+            ]
+        }
+    }
+   ```
+
+**NOTE** `/path/to/interpreter/` should point to a python interpreter you use (can be in your venv for example)
+and `/path/to/your/project/` is the path to your django project.
+
+
+```python
+{
+    "mcpServers": {
+        "gts": {
+            "command": "C:/Progs/anaconda3/envs/i4/python.exe",
+            "args": [
+                "C:/Git/gts/i4server/manage.py",
+                "stdio_server"
+            ]
+        }
+    }
+}
+```
+
 
 ## Advanced topics
 
