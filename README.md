@@ -4,6 +4,7 @@
 ![License](https://img.shields.io/pypi/l/django-mcp-server)
 [![Published on Django Packages](https://img.shields.io/badge/Published%20on-Django%20Packages-0c3c26)](https://djangopackages.org/packages/p/django-mcp-server/)
 ![Python versions](https://img.shields.io/pypi/pyversions/django-mcp-server)
+[![Django versions](https://img.shields.io/pypi/frameworkversions/django/django-mcp-server)](https://pypi.org/project/django-mcp-server/)
 
 **Django MCP Server** is an implementation of the **Model Context Protocol (MCP)** extension for Django. This module allows **MCP Clients** and **AI agents** to interact with **any Django application** seamlessly.
 
