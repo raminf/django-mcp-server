@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -18,3 +19,7 @@ class MCPServerStreamableHttpView(APIView):
 
     def post(self, request, *args, **kwargs):
         return self.mcp_server.handle_django_request(request)
+
+    def delete(self, request, *args, **kwargs):
+        self.mcp_server.destroy_session(request)
+        return HttpResponse(status=200, content="Session destroyed")

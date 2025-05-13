@@ -74,32 +74,27 @@ not start with "_" will be published as a tool.
 Example:
 ```python
 from mcp_server import MCPToolset
-from .models import Bird
 
-class SpeciesCount(MCPToolset):
+class MyAITools(MCPToolset):
     # This method will not be published as a tool because it starts with _
-    def _search_birds(self, search_string: str | None = None) -> Bird:
-        """Get the queryset for birds,
-        methods starting with _ are not registered as tools"""
-        return Bird.objects.all() if search_string is None else Bird.objects.filter(species__icontains=search_string)
+    def add(self, a: int, b: int) -> list[dict]:
+        """A service to add two numbers together"""
+        return a+b
 
-    def list_species(self, search_string: str = None) -> list[dict]:
-        """List all species with a search string, returns the name and count of each species found"""
-        return list(self._search_birds(search_string).values('species', 'count'))
+    def generate_welcome_message(self, name) -> str:
+        return "Hi {name}, welcom by Django MCP Server"
 
-    def increment_species(self, name: str, amount: int = 1) -> int:
-        """
-        Increment the count of a bird species by a specified amount and returns tehe new count.
-        The first argument ios species name the second is the mouunt to increment with (1) by default.
-        """
-        ret = self._search_birds(name).first()
-        if ret is None:
-            ret = Bird.objects.create(species=name)
+    def send_email(self, to_email: str, subject: str, body: str):
+        """ A tool to send emails"""
+        from django.core.mail import send_mail
 
-        ret.count += amount
-        ret.save()
-
-        return ret.count
+        send_mail(
+             subject=subject,
+             message=body,
+             from_email='your_email@example.com',
+             recipient_list=[to_email],
+             fail_silently=False,
+         )
 ```
 
 ---
@@ -174,10 +169,13 @@ django rest framework, like :
 
 ```python
 from mcp_server import drf_serialize_output
+from .serializers import FooBarSerializer
+from .models import FooBar
 
-@drf_serialize_output(MyDRFSerializer)
-def my_tool(arg : Type):
-    return MyInstance()
+class MyTools(MCPToolset):
+   @drf_serialize_output(FooBarSerializer)
+   def get_foo_bar():
+       return FooBar.objects.first()
 ```
 
 ### Use low level mcp server annotation
@@ -189,7 +187,6 @@ mcp tools and resources :
 from mcp_server import mcp_server as mcp
 from .models import Bird
 
-print("Defining tools")
 
 @mcp.tool()
 async def get_species_count(name: str) -> int:
@@ -213,7 +210,9 @@ async def increment_species(name: str, amount: int = 1) -> int:
     return ret.count
 ```
 
-⚠️ **Important**: Always use **Django's async ORM API** in this case.
+⚠️ **Important**:
+1. Always use **Django's async ORM API** when you define async tools.
+2. Be careful not to return a QuerySet as it will be evaluated asynchroniously which would create errors.
 
 ### Customize the default MCP server settings
 
@@ -222,10 +221,20 @@ passed to the `MCPServer` server during initialization
 ```python
 DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
     "name":"mymcp",
-    "instructions": "Some instructions to use this server"
+    "instructions": "Some instructions to use this server",
+    "stateless": False
 }
 ```
 
+### Session management
+
+By default the server is statefull, and stat is managed as a django session in `request.session` object
+which is available in class based tools in "`self.request`". 
+You can make the server stateless by defining : `DJANGO_MCP_GLOBAL_SERVER_CONFIG`
+
+**IMPORTANT** state is managed by django sessions, if you use low level `@mcp_server.tool()` annotation for example
+the behaviour of preserving the server instance accross calls of the base python API is not preserved due to architecture
+of django in WSGI deployments where requests can be served by different threads !
 
 ### Authorization
 

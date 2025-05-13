@@ -2,6 +2,7 @@ import contextvars
 import functools
 import inspect
 from functools import cached_property
+from importlib import import_module
 
 import anyio
 from asgiref.sync import sync_to_async
@@ -146,13 +147,19 @@ class _ToolsetMethodCaller:
         return method(*args, **kwargs)
 
 
+MCP_SESSION_ID_HDR="Mcp-Session-Id"
+
+
 # FIXME: shall I reimplement the necessary without the
 # Stuff pulled to support embedded server ?
 class DjangoMCP(FastMCP):
 
-    def __init__(self, name=None, instructions=None):
+    def __init__(self, name=None, instructions=None, stateless=False):
         # Prevent extra server settings as we do not use the embedded server
         super().__init__(name or "django_mcp_server", instructions)
+        self.stateless=stateless
+        engine = import_module(settings.SESSION_ENGINE)
+        self.SessionStore = engine.SessionStore
 
     @property
     def session_manager(self) -> StreamableHTTPSessionManager:
@@ -160,7 +167,7 @@ class DjangoMCP(FastMCP):
             app=self._mcp_server,
             event_store=self._event_store,
             json_response=True,
-            stateless=True,  # TODO: enable sessions ? Use the stateless setting
+            stateless=True,  # Sessions will be managed as Django sessions.
         )
 
     def handle_django_request(self, request):
@@ -168,7 +175,32 @@ class DjangoMCP(FastMCP):
         Handle a Django request and return a response.
         This method is called by the Django view when a request is received.
         """
-        return anyio.run(_call_starlette_handler, request, self.session_manager)
+        if not self.stateless:
+            session_key = request.headers.get(MCP_SESSION_ID_HDR)
+            if session_key:
+                session = self.SessionStore(session_key)
+                if session.exists(session_key):
+                    request.session = session
+                else:
+                    return HttpResponse(status=404, content="Session not found")
+            elif request.body and request.data.get('method') == 'initialize':
+                # FIXME: Trick to read body before data to avoid DRF complaining
+                request.session = self.SessionStore()
+            else:
+                return HttpResponse(status=400, content="Session required for stateful server")
+
+        result = anyio.run(_call_starlette_handler, request, self.session_manager)
+        request.session.save()
+        result.headers[MCP_SESSION_ID_HDR]=request.session.session_key
+        delattr(request, 'session')
+
+        return result
+
+    def destroy_session(self, request):
+        session_key = request.headers.get(MCP_SESSION_ID_HDR)
+        if not self.stateless and session_key:
+            self.SessionStore(session_key).flush()
+            request.session = None
 
     def register_mcptoolset_cls(self, cls):
         instance = cls()
