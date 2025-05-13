@@ -14,7 +14,8 @@ keywords = ["django", "mcp", "model context protocol", "tools"]
 requires-python = ">=3.10"
 dependencies = [
     "mcp (>=1.8.0)",
-    "django (>=4.0)"
+    "django (>=4.0)",
+    "djangorestframework (>=3.15.0)",
 ]
 classifiers = [
     "Framework :: Django",
@@ -30,3 +31,6 @@ build-backend = "poetry.core.masonry.api"
 
 [[tool.poetry.packages]]
 include = "mcp_server"
+[tool.poetry.group.dev.dependencies]
+djangorestframework = "^3.16.0"
+

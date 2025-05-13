@@ -16,9 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated
+
+from mcp_server.views import MCPServerStreamableHttpView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", include('mcp_server.urls'))
+    path("", include('mcp_server.urls')),
+    path("mcpunsecured", MCPServerStreamableHttpView.as_view())
 
 ]

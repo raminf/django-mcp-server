@@ -1,3 +1,4 @@
+import os
 
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters, StreamableHTTPServerParams
@@ -15,7 +16,10 @@ root_agent = LlmAgent(
     ),
     tools=[MCPToolset(
       connection_params=StreamableHTTPServerParams(
-          url="http://localhost:8000/mcp"
+          url=os.getenv("MCP_ENDPOINT_URL", "http://localhost:8000/mcp"),
+          headers={
+              "Authorization": os.getenv("MCP_AUTH_HEADER"),
+          } if os.getenv("MCP_AUTH_HEADER") else {}
       )
     )],
   )

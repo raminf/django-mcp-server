@@ -1,5 +1,8 @@
-from mcp_server import MCPToolset
+from rest_framework.serializers import ModelSerializer
+
+from mcp_server import MCPToolset, drf_serialize_output
 from .models import Bird
+from .serializers import BirdSerializer
 
 
 class SpeciesCount(MCPToolset):
@@ -10,9 +13,11 @@ class SpeciesCount(MCPToolset):
 
     def list_species(self, search_string: str = None) -> list[dict]:
         """List all species with a search string, returns the name and count of each species found"""
-        return list(self._search_birds(search_string).values('species', 'count'))
+        # Returning a queryset is ok as we auto convert it to a lsit
+        return self._search_birds(search_string).values('species', 'count')
 
-    def increment_species(self, name: str, amount: int = 1) -> int:
+    @drf_serialize_output(BirdSerializer)
+    def increment_species(self, name: str, amount: int = 1):
         """
         Increment the count of a bird species by a specified amount and returns tehe new count.
         The first argument ios species name the second is the mouunt to increment with (1) by default.
@@ -24,13 +29,13 @@ class SpeciesCount(MCPToolset):
         ret.count += amount
         ret.save()
 
-        return ret.count
+        return ret
 
 # For more advanced low level usage, you can use the mcp_server directly
 from mcp_server import mcp_server as mcp
 
 @mcp.tool()
-async def get_species_count(name : str) -> int:
+async def get_species_count(name : str):
     """ Find the ID of a bird species by its name or part of name. Returns the count"""
     ret = await Bird.objects.filter(species__icontains=name).afirst()
     if ret is None:

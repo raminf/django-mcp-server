@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "bird_counter",
+    "rest_framework",
+    "rest_framework.authtoken",
     "mcp_server"
 ]
 
@@ -127,3 +129,5 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
     "name":"mymcp"
 }
+
+DJANGO_MCP_AUTHENTICATION_CLASSES = ["rest_framework.authentication.TokenAuthentication"]

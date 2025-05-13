@@ -4,14 +4,17 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from mcp.server import FastMCP
+from rest_framework.views import APIView
 
 from mcp_server.djangomcp import global_mcp_server
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class MCPServerStreamableHttpView(View):
+class MCPServerStreamableHttpView(APIView):
     mcp_server = global_mcp_server
 
-    def dispatch(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         return self.mcp_server.handle_django_request(request)
 
+    def post(self, request, *args, **kwargs):
+        return self.mcp_server.handle_django_request(request)
