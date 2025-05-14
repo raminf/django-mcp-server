@@ -33,4 +33,5 @@ build-backend = "poetry.core.masonry.api"
 include = "mcp_server"
 [tool.poetry.group.dev.dependencies]
 djangorestframework = "^3.16.0"
+pytest-django = "^4.11.1"
 

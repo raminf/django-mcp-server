@@ -226,10 +226,16 @@ DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
 }
 ```
 
+
 ### Session management
 
-By default the server is statefull, and stat is managed as a django session in `request.session` object
-which is available in class based tools in "`self.request`". 
+By default the server is statefull, and state is managed as [Django session](https://docs.djangoproject.com/en/5.2/topics/http/sessions/)
+`request.session` object, so the session backend must thus be set up correctly. The 
+request object is available in `self.request` for class based toolsets.
+
+**NOTE** The session middleware is not required to be set up as MCP sessions are managed
+independently and without cookies.
+. 
 You can make the server stateless by defining : `DJANGO_MCP_GLOBAL_SERVER_CONFIG`
 
 **IMPORTANT** state is managed by django sessions, if you use low level `@mcp_server.tool()` annotation for example

@@ -1,3 +1,149 @@
+from django.db.models import Q
 from django.test import TestCase
 
-# Create your tests here.
+from .models import Bird, Location, City
+from mcp_server import jsonql
+
+
+class JSONQueryTest(TestCase):
+
+    def setUp(self):
+        cities = City.objects.bulk_create([
+            City(name='New York', country='USA'),
+            City(name='Paris', country='FRA')
+        ])
+        locs = Location.objects.bulk_create([
+            Location(name='Park', description='A large park', city=cities[0]),
+            Location(name='Forest', description='A dense forest', city=cities[1]),
+            Location(name='Beach', description='A sunny beach', city=cities[0]),
+        ])
+        Bird.objects.bulk_create([
+            Bird(location=locs[0], species='Sparrow', count=5),
+            Bird(location=locs[0], species='Robin', count=3),
+            Bird(location=locs[1], species='Eagle', count=2),
+            Bird(location=locs[1], species='Hawk', count=4),
+            Bird(location=locs[2], species='Seagull', count=10),
+            Bird(location=locs[2], species='Pelican', count=7),
+            Bird(location=locs[0], species='Pigeon', count=8),
+            Bird(location=locs[1], species='Falcon', count=6),
+            Bird(location=locs[2], species='Dove', count=1),
+        ])
+
+    def test_gen_schema(self):
+        self.assertEqual(jsonql.generate_json_schema(Bird),
+                         {
+                             'description': 'Inventory of observation of a certain species of birds',
+                             '$jsonSchema': {
+                                 'bsonType': 'object',
+                                 'properties': {
+                                    'id': {
+                                        'description': 'Primary unique identifier for this model',
+                                        'bsonType': 'int'
+                                    },
+                                    'location': {
+                                        'bsonType': 'objectId',
+                                        'description': 'Reference to Location: The location of the observation',
+                                        'ref': 'Location'
+                                    },
+                                    'species': {'bsonType': 'string'},
+                                    'count': {'bsonType': 'int'}
+                                 },
+                                'required': ['species', 'count']}
+                            }
+                         )
+
+    def _assert_bird_jsonquery_match(self, expectedqs, pipeline, count=None):
+        birds = jsonql.apply_json_mango_query(Bird.objects.all(), pipeline)
+        self.assertEqual(set(expectedqs), set(birds))
+        if count is not None:
+            self.assertEqual(count, len(birds))
+
+    def test_query(self):
+        # Test the query method
+        birds = jsonql.apply_json_mango_query(Bird.objects.all(), [])
+        self.assertEqual(Bird.objects.all().count(), birds.count())
+
+        self._assert_bird_jsonquery_match(Bird.objects.filter(species__regex=".*r.*"),
+        [
+                {
+                    "$match": {
+                        "species": { "$regex": ".*r.*" }
+                    }
+                }
+            ])
+
+        self._assert_bird_jsonquery_match(Bird.objects.filter(species__regex=".*r.*"),
+                                       [
+                                              {
+                                                  "$match": {
+                                                      "species": {"$regex": ".*r.*"}
+                                                  }
+                                              }
+                                          ])
+
+        self._assert_bird_jsonquery_match(Bird.objects.filter(species__regex=".*r.*", count__gte=5),
+                                          [
+                                              {
+                                                  "$match": {
+                                                      "species": {"$regex": ".*r.*"},
+                                                      "count": {"$gte": 5}
+                                                  }
+                                              }
+                                          ], 1)
+
+        self._assert_bird_jsonquery_match(Bird.objects.filter(Q(species__regex=".*r.*", count__gte=5)|Q(count__lt=3)),
+                                          [
+                                              {
+                                                  "$match": {
+                                                      "$or": [
+                                                          { "species": {"$regex": ".*r.*"} },
+                                                          { "count": {"$lt": 3} }
+                                                    ]
+                                                  }
+                                              }
+                                          ], 3)
+
+    def test_query_with_lookup(self):
+        self._assert_bird_jsonquery_match(
+            Bird.objects.filter(Q(location__name="Forest") | Q(count__lt=3)),
+            [
+                {
+                    "$lookup": {
+                        "from": "location",
+                        "localField": "location",
+                        "foreignField": "_id",
+                        "as": "loc"
+                    }
+                },
+                {
+                    "$match": {
+                        "$or": [
+                            {"count": {"$lt": 3}},
+                            {"loc.name": "Forest"}
+                        ]
+                    }
+                }
+            ], 4)
+
+        self._assert_bird_jsonquery_match(
+            Bird.objects.filter(Q(location__city__country="USA")),
+            [
+                {
+                    "$lookup": {
+                        "from": "location",
+                        "localField": "location",
+                        "foreignField": "_id",
+                        "as": "loc"
+                    }
+                },{
+                    "$lookup": {
+                        "from": "city",
+                        "localField": "loc.city",
+                        "foreignField": "_id",
+                        "as": "city"
+                    }
+                },
+                {
+                    "$match": {"city.country": "USA"}
+                }
+            ], 6)
