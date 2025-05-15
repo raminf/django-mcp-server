@@ -8,7 +8,7 @@ from importlib import import_module
 import anyio
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.db.models import QuerySet, Model
+from django.db.models import QuerySet, Model, TextField, CharField
 from mcp.server import FastMCP, Server
 from mcp.server.fastmcp import Context
 from mcp.server.sse import SseServerTransport
@@ -25,7 +25,7 @@ from starlette.datastructures import Headers
 from io import BytesIO
 import asyncio
 
-from mcp_server.agg_pipeline_ql import apply_json_mango_query, PIPELINE_DSL_SPEC, generate_json_schema
+from mcp_server.agg_pipeline_ql import apply_json_mango_query, pipeline_dsl_spec, generate_json_schema
 
 django_request_ctx = contextvars.ContextVar("django_request")
 
@@ -282,11 +282,28 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
     fields: dict[type(Model), str] = {}
     "A dict mapping Model classes to the only fields that can be in schema: for the main model or published models"
 
+    search_fields: list[str] = None
+    "List of fields for full text search, if not set it defaults to textual fields allowed by 'fields' parameters."
+
     extra_filters: list[str] = None
     "A list of queryset api filters that will be accessible to the MCP client for querying."
 
     extra_instructions: str = None
     "Extra instruction to provide to the MCP client (usually the agent)"
+
+
+    @cached_property
+    def _text_search_fields(self):
+        if self.search_fields is not None:
+            return self.search_fields
+        fields = self.fields.get(self.model)
+        if fields is None:
+            return [f.name for f in self.model._meta.get_fields() if
+                          isinstance(f, (CharField, TextField)) and f.concrete and not f.is_relation]
+        else:
+            return [f for f in fields if not self.model._meta.fields[f].is_relation and
+                                  isinstance(self.model._meta.fields[f], (CharField, TextField))]
+
 
     def get_queryset(self):
         """ Return the queryset, override to customize"""
@@ -297,7 +314,7 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
         extra_instructions attribute. Doc string of the class is included if set"""
         instructions = self.__doc__ or f"A tool to query '{self.model._meta.model_name}' collection"
         ret = f"""{instructions}.
-{PIPELINE_DSL_SPEC}
+{pipeline_dsl_spec(bool(self._text_search_fields))}
 
 # JSON schemas involved:
 
@@ -326,7 +343,10 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
         return ret
 
     def query(self, search_pipeline: list[dict] = None) -> list[dict]:
-        return list(apply_json_mango_query(self.get_queryset(), search_pipeline,
+        qs = self.get_queryset()
+
+        return list(apply_json_mango_query(qs, search_pipeline,
+                                           text_search_fields=self._text_search_fields,
                                            allowed_models=[self.model, *self.extra_published_models],
                                            extended_operators=self.extra_filters))
 

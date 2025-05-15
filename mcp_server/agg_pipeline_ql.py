@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Q, QuerySet
-from collections import defaultdict
+from django.db.models import CharField, TextField
 
 """
     Tools to generate MongoDB-style $jsonSchema from Django models
@@ -107,7 +107,8 @@ def generate_json_schema(model, fields=None, exclude=None):
 
 
 
-PIPELINE_DSL_SPEC ="""
+def pipeline_dsl_spec(support_full_text):
+    return f"""
 The syntax to query is a subset of MangoDB aggregation pipeline JSON with support of following stages : 
 
 1. $lookup: Joins another collection :.
@@ -116,25 +117,27 @@ The syntax to query is a subset of MangoDB aggregation pipeline JSON with suppor
   - "foreignField" must be "_id"
   - "as" defines an alias used in subsequent $match and $lookup stages as a prefix (e.g., alias.field).
 2. $match: Filter documents using comparison and logical operators.
-  - Supports: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $regex
+  - Supports: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $regex{', $text' if support_full_text else ''}
   - Field references can include lookup aliases via dot notation, e.g. "user.name"
 3. $sort: Sorts the result. Keys must map to model fields.
 4. $limit: Truncates the result set to the specified number of items.
 5. $project: Selects specific fields for results. Only "flat" objects are supported.
    Value is either a number/boolean to include/exclude the field or a string starting in format 
    "$<lookupAlias>.<field>" to project a field from a previous $lookup stage.  
+{'6. $search: Full-text search on a field. Limited to \{"text":\{"query":...\}\}.' if support_full_text else ''}
 """
 
-
 def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
-                           allowed_models: list = None, extended_operators: list = None):
+                           allowed_models: list = None, extended_operators: list = None,
+                           text_search_fields: list | str = '*'):
     """
     Apply a JSON-like query to a Django QuerySet using a subset of MangoDB aggregation pipeline syntax.
-    see PIPELINE_DSL_SPEC for details.
+    see pipeline_dsl_spec() for details.
     :param queryset: The base queryset to query
-    :param pipeline: a list of stages to apply to the queryset compliant with PIPELINE_DSL_SPEC
+    :param pipeline: a list of stages to apply to the queryset compliant with pipeline_dsl_spec()
     :param allowed_models: List of allowed models for $lookup stages. If None, all models are allowed. Can be the string name or the Model class.
     :param extended_operators: List of Queryset API lookups to support as exetended operators. this interprets {"<field>":{"$<op>": value} as Q({field}__{op}=value)
+    :param text_search_fields: List of field names to apply `$text` full-text search to. Use "*" to apply to all CharField and TextField fields of the model. Required if `$text` is used.
     :return: an iterable (eventually the queryset) of JSON results.
     """
     if extended_operators is None:
@@ -144,7 +147,9 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
         allowed_models = [model.lower() if isinstance(model, str) else model._meta.model_name.lower()  for model in allowed_models]
 
     model = queryset.model
-    model_name = model._meta.model_name
+    if text_search_fields == "*":
+        text_search_fields = [f.name for f in model._meta.get_fields() if
+                              isinstance(f, (CharField, TextField)) and f.concrete and not f.is_relation]
 
     lookup_alias_map = {}
 
@@ -168,7 +173,30 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
 
     for stage in pipeline:
         if "$match" in stage:
-            queryset = queryset.filter(_parse_match(stage["$match"], extended_operators, lookup_alias_map))
+            match_stage = stage["$match"]
+            if "$text" in match_stage:
+                if not text_search_fields:
+                    raise ValueError("$text used but text_search_fields is not defined.")
+                search_value = match_stage["$text"].get("$search", "")
+                del match_stage["$text"]
+                q = _build_text_search_q(search_value, text_search_fields)
+                if match_stage:
+                    q &= _parse_match(match_stage, extended_operators, lookup_alias_map, text_search_fields)
+                queryset = queryset.filter(q)
+            else:
+                queryset = queryset.filter(_parse_match(stage["$match"], extended_operators, lookup_alias_map, text_search_fields=[]))
+        elif "$search" in stage:
+            search = stage["$search"]
+            if not text_search_fields:
+                raise ValueError("$search used but text_search_fields is not defined.")
+            search_value = search["text"]["query"]
+            path = search["text"].get("path", text_search_fields)
+            search_fields = [path] if isinstance(path, str) else path
+
+            if not all(f in text_search_fields for f in search_fields):
+                raise ValueError("$search path contains fields not in text_search_fields")
+            q = _build_text_search_q(search_value, search_fields)
+            queryset = queryset.filter(q)
         elif "$sort" in stage:
             order = []
             for field, direction in stage["$sort"].items():
@@ -275,7 +303,7 @@ def _resolve_model_from_path(model, field_path, lookup_map):
     return current_model, parts[-1]
 
 
-def _parse_match(match, extended_operators, lookup_map):
+def _parse_match(match, extended_operators, lookup_map, text_search_fields=None):
     if "$and" in match:
         return Q(*[_parse_match(cond, extended_operators, lookup_map) for cond in match["$and"]])
     if "$or" in match:
@@ -318,3 +346,14 @@ def _translate_field(field, lookup_map):
         else:
             raise ValueError(f"Unknown lookup alias '{alias}', ensure it appears in the 'as' field of a previous $lookup")
     return field
+
+
+
+def _build_text_search_q(search_value, fields):
+    q = Q()
+    for word in search_value.strip().split():
+        word_q = Q()
+        for f in fields:
+            word_q |= Q(**{f"{f}__icontains": word})
+        q &= word_q
+    return q

@@ -52,8 +52,8 @@ class JSONQueryTest(TestCase):
                             }
                          )
 
-    def _assert_bird_jsonquery_match(self, expectedqs, pipeline, count=None):
-        birds = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all().order_by("id"), pipeline)
+    def _assert_bird_jsonquery_match(self, expectedqs, pipeline, count=None, **kwargs):
+        birds = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all().order_by("id"), pipeline, **kwargs)
         birds = list(birds)
         self.assertListEqual(list(expectedqs.values().order_by("id")), birds)
         if count is not None:
@@ -187,3 +187,32 @@ class JSONQueryTest(TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]['species'], "Eagle")
         self.assertEqual(res[0]['country'], "FRA")
+
+
+    def test_fulltext_search_stage(self):
+        self._assert_bird_jsonquery_match(
+            Bird.objects.filter(species__in=['Falcon','Eagle']), [
+                {
+                    "$search": {
+                        "text": {
+                            "query": "For l"
+                        }
+                    }
+                }
+            ],
+            text_search_fields=['species','location__name']
+        )
+
+    def test_fulltext_search_match_text_op(self):
+        res = self._assert_bird_jsonquery_match(
+            Bird.objects.filter(species__in=['Falcon','Eagle']), [
+                {
+                    "$match": {
+                        "$text": {
+                            "$search": "l fore"
+                        }
+                    }
+                }
+            ],
+            text_search_fields=['species','location__name']
+        )
