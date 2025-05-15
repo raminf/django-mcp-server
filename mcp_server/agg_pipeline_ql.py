@@ -50,7 +50,7 @@ def generate_json_schema(model, fields=None, exclude=None):
     }
 
     for field in model._meta.get_fields():
-        if field.auto_created and not field.concrete:
+        if field.auto_created or not field.concrete:
             continue
         if fields and field.name not in fields:
             continue
