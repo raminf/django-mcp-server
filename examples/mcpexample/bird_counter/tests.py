@@ -2,7 +2,7 @@ from django.db.models import Q
 from django.test import TestCase
 
 from .models import Bird, Location, City
-from mcp_server import jsonql
+from mcp_server import agg_pipeline_ql
 
 
 class JSONQueryTest(TestCase):
@@ -30,7 +30,7 @@ class JSONQueryTest(TestCase):
         ])
 
     def test_gen_schema(self):
-        self.assertEqual(jsonql.generate_json_schema(Bird),
+        self.assertEqual(agg_pipeline_ql.generate_json_schema(Bird),
                          {
                              'description': 'Inventory of observation of a certain species of birds',
                              '$jsonSchema': {
@@ -53,15 +53,17 @@ class JSONQueryTest(TestCase):
                          )
 
     def _assert_bird_jsonquery_match(self, expectedqs, pipeline, count=None):
-        birds = jsonql.apply_json_mango_query(Bird.objects.all(), pipeline)
-        self.assertEqual(set(expectedqs), set(birds))
+        birds = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all().order_by("id"), pipeline)
+        birds = list(birds)
+        self.assertListEqual(list(expectedqs.values().order_by("id")), birds)
         if count is not None:
             self.assertEqual(count, len(birds))
 
     def test_query(self):
         # Test the query method
-        birds = jsonql.apply_json_mango_query(Bird.objects.all(), [])
-        self.assertEqual(Bird.objects.all().count(), birds.count())
+        birds = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all(), [])
+        birds = list(birds)
+        self.assertEqual(Bird.objects.all().count(), len(birds))
 
         self._assert_bird_jsonquery_match(Bird.objects.filter(species__regex=".*r.*"),
         [
@@ -147,3 +149,41 @@ class JSONQueryTest(TestCase):
                     "$match": {"city.country": "USA"}
                 }
             ], 6)
+
+    def test_projection(self):
+        res = agg_pipeline_ql.apply_json_mango_query(
+            Bird.objects.all(),[
+                {
+                    "$lookup": {
+                        "from": "location",
+                        "localField": "location",
+                        "foreignField": "_id",
+                        "as": "loc"
+                    }
+                },{
+                    "$lookup": {
+                        "from": "city",
+                        "localField": "loc.city",
+                        "foreignField": "_id",
+                        "as": "city"
+                    }
+                },
+                {
+                    "$match": {
+                        "species": "Eagle"
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": 0,
+                        "species": 1,
+                        "country": "$city.country",
+                    }
+                }
+            ]
+        )
+
+        res = list(res)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]['species'], "Eagle")
+        self.assertEqual(res[0]['country'], "FRA")

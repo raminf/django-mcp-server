@@ -7,7 +7,7 @@ from .models import Bird, City, Location
 
 @admin.register(Bird)
 class BirdAdmin(admin.ModelAdmin):
-    list_display = ('species', 'count')
+    list_display = ('species', 'location', 'count')
     search_fields = ('species',)
     ordering = ('species',)
 

@@ -1,4 +1,13 @@
 from django.db import models
+from django.db.models import Q, QuerySet
+from collections import defaultdict
+
+"""
+    Tools to generate MongoDB-style $jsonSchema from Django models
+    and to apply JSON-like queries to Django QuerySets using a subset 
+    of MangoDB aggregation pipeline syntax.
+"""
+
 
 def generate_json_schema(model, fields=None, exclude=None):
     """
@@ -96,12 +105,38 @@ def generate_json_schema(model, fields=None, exclude=None):
 
     return schema
 
-from django.db.models import Q
-
-from django.db.models import Q
 
 
-def apply_json_mango_query(queryset, pipeline, allowed_models=None, extended_operators=None):
+PIPELINE_DSL_SPEC ="""
+The syntax to query is a subset of MangoDB aggregation pipeline JSON with support of following stages : 
+
+1. $lookup: Joins another collection :.
+  - "from" must refer to a model name listed in ref in the schema (if defined).
+  - "localField" must be a field path on the base colletion or a previous $lookup alias.
+  - "foreignField" must be "_id"
+  - "as" defines an alias used in subsequent $match and $lookup stages as a prefix (e.g., alias.field).
+2. $match: Filter documents using comparison and logical operators.
+  - Supports: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $regex
+  - Field references can include lookup aliases via dot notation, e.g. "user.name"
+3. $sort: Sorts the result. Keys must map to model fields.
+4. $limit: Truncates the result set to the specified number of items.
+5. $project: Selects specific fields for results. Only "flat" objects are supported.
+   Value is either a number/boolean to include/exclude the field or a string starting in format 
+   "$<lookupAlias>.<field>" to project a field from a previous $lookup stage.  
+"""
+
+
+def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
+                           allowed_models: list = None, extended_operators: list = None):
+    """
+    Apply a JSON-like query to a Django QuerySet using a subset of MangoDB aggregation pipeline syntax.
+    see PIPELINE_DSL_SPEC for details.
+    :param queryset: The base queryset to query
+    :param pipeline: a list of stages to apply to the queryset compliant with PIPELINE_DSL_SPEC
+    :param allowed_models: List of allowed models for $lookup stages. If None, all models are allowed.
+    :param extended_operators: List of Queryset API lookups to support as exetended operators. this interprets {"<field>":{"$<op>": value} as Q({field}__{op}=value)
+    :return: an iterable (eventually the queryset) of JSON results.
+    """
     if extended_operators is None:
         extended_operators = []
 
@@ -125,6 +160,9 @@ def apply_json_mango_query(queryset, pipeline, allowed_models=None, extended_ope
 
     # Second pass: Apply rest
     projection_fields = None
+    projection_mapping = None
+    skip_value = None
+
     for stage in pipeline:
         if "$match" in stage:
             queryset = queryset.filter(_parse_match(stage["$match"], extended_operators, lookup_alias_map))
@@ -133,16 +171,67 @@ def apply_json_mango_query(queryset, pipeline, allowed_models=None, extended_ope
             for field, direction in stage["$sort"].items():
                 order.append(field if direction == 1 else f"-{field}")
             queryset = queryset.order_by(*order)
+        elif "$skip" in stage:
+            skip_value = stage["$skip"]
         elif "$limit" in stage:
             queryset = queryset[:stage["$limit"]]
         elif "$project" in stage:
-            projection = stage["$project"]
-            projection_fields = [field for field, include in projection.items() if include]
+            projection_fields, projection_mapping = _interpret_projection(stage["$project"], lookup_alias_map)
+
+    if skip_value is not None:
+        queryset = queryset[skip_value:]
 
     if projection_fields:
         queryset = queryset.values(*projection_fields)
+        return _postprocess_projection(queryset, projection_mapping)
 
-    return queryset
+    return _postprocess_projection(queryset.values(), None)
+
+
+def _interpret_projection(projection, lookup_map):
+    fields = []
+    mapping = {}
+    for output_field, spec in projection.items():
+        if isinstance(spec, str) and spec.startswith("$"):
+            path = spec[1:]
+            if path == "_id":
+                path = "pk"
+            internal_field = _translate_field(path, lookup_map)
+            fields.append(internal_field)
+            mapping[output_field] = internal_field
+        elif spec:
+            path = output_field if output_field != "_id" else "pk"
+            internal_field = _translate_field(path, lookup_map)
+            fields.append(internal_field)
+            mapping[output_field] = internal_field
+    return fields, mapping
+
+
+def _postprocess_projection(queryset, projection_mapping):
+    if not projection_mapping:
+        yield from queryset
+        return
+
+    for row in queryset:
+        result = {}
+        for key, internal_key in projection_mapping.items():
+            value = row.get(internal_key)
+            _assign_nested_value(result, key.split("."), value)
+        yield result
+
+
+def _assign_nested_value(target, path_parts, value):
+    for part in path_parts[:-1]:
+        target = target.setdefault(part, {})
+    target[path_parts[-1]] = value
+
+
+def _restore_field_path(field, lookup_map):
+    for alias, info in lookup_map.items():
+        prefix = info['prefix']
+        if field.startswith(prefix + "__"):
+            return alias + "." + field[len(prefix + "__"):].replace("__", ".")
+    return field.replace("__", ".")
 
 
 def _validate_lookup(model, lookup, allowed_models, lookup_map):
@@ -217,6 +306,8 @@ def _parse_match(match, extended_operators, lookup_map):
 
 
 def _translate_field(field, lookup_map):
+    if field == "_id":
+        return "pk"
     if "." in field:
         alias, rest = field.split(".", 1)
         if alias in lookup_map:

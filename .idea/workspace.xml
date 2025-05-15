@@ -5,15 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d88231da-2855-41e6-b975-0ce1ddba6c01" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/examples/mcpexample/pytest.ini" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mcp_server/jsonql.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/admin.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp_server/jsonql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,6 +32,7 @@
   "keyToString": {
     "Python tests.Python tests for bird_counter.tests.JSONQueryTest.executor": "Run",
     "Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_gen_schema.executor": "Run",
+    "Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_projection.executor": "Run",
     "Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_query.executor": "Run",
     "Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_query_with_lookup.executor": "Run",
     "Python tests.Python tests for tests.JSONQueryTest.test_query.test_query_with_lookup.executor": "Run",
@@ -66,7 +63,7 @@
       <recent name="C:\Git\gts\django-mcp-server" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.mcpexample runserver">
+  <component name="RunManager" selected="Python tests.Python tests for bird_counter.tests.JSONQueryTest">
     <configuration name="Unnamed" type="CompoundRunConfigurationType">
       <method v="2" />
     </configuration>
@@ -222,7 +219,7 @@
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
-    <configuration name="Python tests for bird_counter.tests.JSONQueryTest.test_gen_schema" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+    <configuration name="Python tests for bird_counter.tests.JSONQueryTest.test_projection" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
       <module name="django-mcp-server" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -233,7 +230,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_target" value="&quot;bird_counter.tests.JSONQueryTest.test_gen_schema&quot;" />
+      <option name="_new_target" value="&quot;bird_counter.tests.JSONQueryTest.test_projection&quot;" />
       <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
@@ -289,7 +286,7 @@
       <item itemvalue="Python.mcpexample runserver" />
       <item itemvalue="Python.test_mcp_client" />
       <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest" />
-      <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_gen_schema" />
+      <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_projection" />
       <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_query" />
       <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_query_with_lookup" />
       <item itemvalue="Python tests.Python tests for tests.JSONQueryTest.test_query.test_query_with_lookup" />
@@ -300,9 +297,9 @@
       <list>
         <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest" />
         <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_query_with_lookup" />
+        <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_projection" />
         <item itemvalue="Python tests.Python tests for tests.JSONQueryTest.test_query.test_query_with_lookup" />
         <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_query" />
-        <item itemvalue="Python tests.Python tests for bird_counter.tests.JSONQueryTest.test_gen_schema" />
       </list>
     </recent_temporary>
   </component>
@@ -333,9 +330,9 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/mcp_server/jsonql.py</url>
-          <line>160</line>
-          <option name="timeStamp" value="24" />
+          <url>file://$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py</url>
+          <line>186</line>
+          <option name="timeStamp" value="26" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
