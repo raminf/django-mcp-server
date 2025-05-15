@@ -1,8 +1,17 @@
 from rest_framework.serializers import ModelSerializer
 
-from mcp_server import MCPToolset, drf_serialize_output, agg_pipeline_ql
+from mcp_server import MCPToolset, drf_serialize_output
+from mcp_server import ModelQueryToolset
 from .models import Bird, Location, City
 from .serializers import BirdSerializer
+
+
+class BirdQuery(ModelQueryToolset):
+    model = Bird
+    extra_published_models = [Location, City]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(location__isnull=False)
 
 
 class SpeciesCount(MCPToolset):
@@ -10,31 +19,6 @@ class SpeciesCount(MCPToolset):
         """Get the queryset for birds,
         methods starting with _ are not registered as tools"""
         return Bird.objects.all() if search_string is None else Bird.objects.filter(species__icontains=search_string)
-
-    def query_species(self, search_pipeline: list[dict] = None) -> list[dict]:
-        # Returning a queryset is ok as we auto convert it to a lsit
-        ret = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all(), search_pipeline)
-        return list(ret)
-
-    query_species.__doc__ = f"""Query 'bird' collection.
-{agg_pipeline_ql.PIPELINE_DSL_SPEC}
-
-# JSON schemas involved:
-## bird
-```json
-{agg_pipeline_ql.generate_json_schema(Bird)}
-```
-
-## location
-```json
-{agg_pipeline_ql.generate_json_schema(Location)}
-```
-
-## city
-```json
-{agg_pipeline_ql.generate_json_schema(City)}
-```
-"""
 
     @drf_serialize_output(BirdSerializer)
     def increment_species(self, name: str, amount: int = 1):

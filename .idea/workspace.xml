@@ -6,10 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="d88231da-2855-41e6-b975-0ce1ddba6c01" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/admin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp_server/jsonql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp_server/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp_server/djangomcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/djangomcp.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,9 +49,9 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "Shell Script.Unnamed.executor": "Run",
     "Shell Script.adk web 8001.executor": "Run",
-    "Shell Script.mcp inspector.executor": "Debug",
+    "Shell Script.mcp inspector.executor": "Run",
     "last_opened_file_path": "C:/Git/gts/django-mcp-server/examples/mcpexample",
-    "settings.editor.selected.configurable": "terminal"
+    "settings.editor.selected.configurable": "configurable.group.appearance"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -63,7 +64,7 @@
       <recent name="C:\Git\gts\django-mcp-server" />
     </key>
   </component>
-  <component name="RunManager" selected="Python tests.Python tests for bird_counter.tests.JSONQueryTest">
+  <component name="RunManager" selected="Shell Script.mcp inspector">
     <configuration name="Unnamed" type="CompoundRunConfigurationType">
       <method v="2" />
     </configuration>

@@ -133,12 +133,15 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
     see PIPELINE_DSL_SPEC for details.
     :param queryset: The base queryset to query
     :param pipeline: a list of stages to apply to the queryset compliant with PIPELINE_DSL_SPEC
-    :param allowed_models: List of allowed models for $lookup stages. If None, all models are allowed.
+    :param allowed_models: List of allowed models for $lookup stages. If None, all models are allowed. Can be the string name or the Model class.
     :param extended_operators: List of Queryset API lookups to support as exetended operators. this interprets {"<field>":{"$<op>": value} as Q({field}__{op}=value)
     :return: an iterable (eventually the queryset) of JSON results.
     """
     if extended_operators is None:
         extended_operators = []
+
+    if allowed_models:
+        allowed_models = [model.lower() if isinstance(model, str) else model._meta.model_name.lower()  for model in allowed_models]
 
     model = queryset.model
     model_name = model._meta.model_name
@@ -236,7 +239,7 @@ def _restore_field_path(field, lookup_map):
 
 def _validate_lookup(model, lookup, allowed_models, lookup_map):
     from_model_name = lookup["from"]
-    if allowed_models is not None and from_model_name not in allowed_models:
+    if allowed_models is not None and from_model_name.lower() not in allowed_models:
         raise ValueError(f"Lookup from model '{from_model_name}' is not allowed.")
 
     local_field_name = _translate_field(lookup["localField"], lookup_map)

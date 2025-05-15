@@ -1,13 +1,14 @@
 import contextvars
 import functools
 import inspect
+from collections import defaultdict
 from functools import cached_property
 from importlib import import_module
 
 import anyio
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Model
 from mcp.server import FastMCP, Server
 from mcp.server.fastmcp import Context
 from mcp.server.sse import SseServerTransport
@@ -23,6 +24,8 @@ from starlette.types import Scope, Receive, Send
 from starlette.datastructures import Headers
 from io import BytesIO
 import asyncio
+
+from mcp_server.agg_pipeline_ql import apply_json_mango_query, PIPELINE_DSL_SPEC, generate_json_schema
 
 django_request_ctx = contextvars.ContextVar("django_request")
 
@@ -203,17 +206,7 @@ class DjangoMCP(FastMCP):
             request.session = None
 
     def register_mcptoolset_cls(self, cls):
-        instance = cls()
-        # ITerate all the methods whose name does not start with _ and register them with mcp_server.add_tool
-        for name, method in inspect.getmembers(instance, predicate=inspect.ismethod):
-            if not callable(method) or name.startswith("_"): continue
-            tool = self._tool_manager.add_tool(sync_to_async(method))
-            if tool.context_kwarg is None:
-                forward_context = False
-                tool.context_kwarg = "_context"
-            else:
-                forward_context = True
-            tool.fn = _ToolsetMethodCaller(cls, name, tool.context_kwarg, forward_context)
+        cls()._add_tools_to(self._tool_manager)
 
 
 global_mcp_server = DjangoMCP(**getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', {}))
@@ -225,7 +218,7 @@ class ToolsetMeta(type):
     def __init__(cls, name, bases, namespace):
         super().__init__(name, bases, namespace)
         # Skip base class itself
-        if name != "MCPToolset":
+        if name not in ("ModelQueryToolset", "MCPToolset"):
             ToolsetMeta.registry[name] = cls
 
 
@@ -256,6 +249,106 @@ class MCPToolset(metaclass=ToolsetMeta):
         self.request = request
         if self.mcp_server is None:
             self.mcp_server = global_mcp_server
+
+    def _add_tools_to(self, tool_manager):
+        # ITerate all the methods whose name does not start with _ and register them with mcp_server.add_tool
+        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
+            if not callable(method) or name.startswith("_"): continue
+            tool = tool_manager.add_tool(sync_to_async(method))
+            if tool.context_kwarg is None:
+                forward_context = False
+                tool.context_kwarg = "_context"
+            else:
+                forward_context = True
+            tool.fn = _ToolsetMethodCaller(self.__class__, name, tool.context_kwarg, forward_context)
+
+
+class ModelQueryToolset(metaclass=ToolsetMeta):
+    mcp_server: DjangoMCP = None
+    "The server to use, if not set, the global one will be used."
+
+    model: type(Model) = None
+    " The model to query, this is used to generate the JSON schema and the query methods. "
+
+    name: str = None
+    "The name of the tool, if not set, the class name will be used "
+
+    extra_published_models: list[Model] = []
+    "The list of models allowed to query or navigate in addition to the main one as foreign keys for example."
+
+    exclude_fields: dict[type(Model), str] = {}
+    "A dict mapping Model classes to fields that must not be in schema: the main model or published models"
+
+    fields: dict[type(Model), str] = {}
+    "A dict mapping Model classes to the only fields that can be in schema: for the main model or published models"
+
+    extra_filters: list[str] = None
+    "A list of queryset api filters that will be accessible to the MCP client for querying."
+
+    extra_instructions: str = None
+    "Extra instruction to provide to the MCP client (usually the agent)"
+
+    def get_queryset(self):
+        """ Return the queryset, override to customize"""
+        return self.model._default_manager.all()
+
+    def get_instructions(self):
+        """ Generates the instructions, you can add extra instructions with the
+        extra_instructions attribute. Doc string of the class is included if set"""
+        instructions = self.__doc__ or f"A tool to query '{self.model._meta.model_name}' collection"
+        ret = f"""{instructions}.
+{PIPELINE_DSL_SPEC}
+
+# JSON schemas involved:
+
+## {self.model._meta.model_name} (the main queried collection)
+```json
+{generate_json_schema(self.model, fields=self.fields.get(self.model),
+                      exclude=self.exclude_fields.get(self.model))}
+```
+"""
+
+        for model in self.extra_published_models:
+            ret += f"""
+## {model._meta.model_name}
+```json
+{generate_json_schema(model, fields=self.fields.get(model),
+                      exclude=self.exclude_fields.get(model))}
+```
+"""
+            if self.extra_instructions:
+                ret += f"""
+# Extra instructions
+
+{self.extra_instructions}
+
+"""
+        return ret
+
+    def query(self, search_pipeline: list[dict] = None) -> list[dict]:
+        return list(apply_json_mango_query(self.get_queryset(), search_pipeline,
+                                           allowed_models=[self.model, *self.extra_published_models],
+                                           extended_operators=self.extra_filters))
+
+    def __init__(self, context=None, request=None):
+        self.context = context
+        self.request = request
+        if self.mcp_server is None:
+            self.mcp_server = global_mcp_server
+
+    def _add_tools_to(self, tool_manager):
+        # ITerate all the methods whose name does not start with _ and register them with mcp_server.add_tool
+        method = self.query
+        name = self.name or f"{self.__class__.__name__}_{self.model._meta.model_name}Query"
+
+        tool = tool_manager.add_tool(
+            fn=sync_to_async(method),
+            name=name,
+            description=self.get_instructions()
+        )
+
+        tool.context_kwarg = "_context"
+        tool.fn = _ToolsetMethodCaller(self.__class__, "query", "_context", False)
 
 
 def init():

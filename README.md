@@ -8,9 +8,9 @@
 
 **Django MCP Server** is an implementation of the **Model Context Protocol (MCP)** extension for Django. This module allows **MCP Clients** and **AI agents** to interact with **any Django application** seamlessly.
 
-✅ Works inside your existing **WSGI** application.  
-🚀 Implements the standare stdio and **Streamable HTTP transport (stateless)** is implemented. 
-🤖 Any MCP Client, including Claude Desktop can interact with your application.
+🚀 Django-Style declarative style-tool tool to Query Django Models and call custom logic by AI Agents and MCP clients
+✅ Working on all apps (WSGI and ASGI) without infrastructure change.  
+🤖 Any MCP Client, (Google Agent Developement Kit, Claude Desktop ...) can interact with your application.
 
 Licensed under the **MIT License**.
 
@@ -68,12 +68,24 @@ By default, the MCP endpoint will be available at `/mcp`.
 
 ### 3️⃣ Define MCP Tools
 
-Create a file `mcp.py` in your Django app and create a sub class of MCPToolset : each method that does
-not start with "_" will be published as a tool.
+In mcp.py create a subclass of `ModelQueryTool` to give access to a model :
+
+```python
+from mcp_server import ModelQueryToolset
+from .models import *
+
+class BirdQuery(ModelQueryToolset):
+    model = Bird
+    extra_published_models = [Location, City]
+
+```
+
+Or create a sub class of `MCPToolset` to publish generic methods (private _ methods are not published) 
 
 Example:
 ```python
 from mcp_server import MCPToolset
+from django.core.mail import send_mail
 
 class MyAITools(MCPToolset):
     # This method will not be published as a tool because it starts with _
@@ -81,12 +93,8 @@ class MyAITools(MCPToolset):
         """A service to add two numbers together"""
         return a+b
 
-    def generate_welcome_message(self, name) -> str:
-        return "Hi {name}, welcom by Django MCP Server"
-
     def send_email(self, to_email: str, subject: str, body: str):
         """ A tool to send emails"""
-        from django.core.mail import send_mail
 
         send_mail(
              subject=subject,
@@ -99,10 +107,16 @@ class MyAITools(MCPToolset):
 
 ---
 
-### Use the MCP Tool
+### Use the MCP with any MCP Client
 
-The mcp tool is now published on your Django App at `/mcp` endpoint. You can 
-test it with the python mcp SDK :
+The mcp tool is now published on your Django App at `/mcp` endpoint. 
+
+**IMPORTANT** For production setup, on non-public data, consider enabling 
+authorization through : DJANGO_MCP_AUTHENTICATION_CLASSES
+
+### Test with MCP Python SDK
+
+You can test it with the python mcp SDK :
 
 ```python
 from mcp.client.streamable_http import streamablehttp_client
