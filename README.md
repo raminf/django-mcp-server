@@ -346,6 +346,16 @@ Refer to this [list of clients](https://modelcontextprotocol.io/clients)
 
 ---
 
+## Settings
+
+- **DJANGO_MCP_GLOBAL_SERVER_CONFIG** a configuration dictionnary for the global MCP server default to empty. It can include the following parmaters
+   - name: a  name for the server
+   - instructions: global instructions
+   - stateless : when set to 'True' the server will not manage sessions 
+
+- **DJANGO_MCP_AUTHENTICATION_CLASSES** (default to no authentication) a list of reference to Django Rest Framework authentication classes to enfors in the main MCP view.
+- **DJANGO_MCP_GET_SERVER_INSTRUCTIONS_TOOL** (default=True) if true a tool will be offered to obtain global instruction, as agents do not always have the MCP server glboal instructions incldued in their system prompt.
+
 ## Roadmap
 
 - ✅ **Stateless streamable HTTP transport** (implemented)

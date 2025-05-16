@@ -8,10 +8,24 @@ from .serializers import BirdSerializer
 
 class BirdQuery(ModelQueryToolset):
     model = Bird
-    extra_published_models = [Location, City]
 
     def get_queryset(self):
+        """self.request can be used to filter the queryset"""
         return super().get_queryset().filter(location__isnull=False)
+
+class LocationTool(ModelQueryToolset):
+    model = Location
+
+class CityTool(ModelQueryToolset):
+    model = City
+
+
+class LocationQuery(ModelQueryToolset):
+    model = Location
+
+
+class CityQuery(ModelQueryToolset):
+    model = City
 
 
 class SpeciesCount(MCPToolset):

@@ -50,7 +50,7 @@ def generate_json_schema(model, fields=None, exclude=None):
     }
 
     for field in model._meta.get_fields():
-        if field.auto_created or not field.concrete:
+        if not field.concrete:
             continue
         if fields and field.name not in fields:
             continue
@@ -107,8 +107,7 @@ def generate_json_schema(model, fields=None, exclude=None):
 
 
 
-def pipeline_dsl_spec(support_full_text):
-    return f"""
+PIPELINE_DSL_SPEC="""
 The syntax to query is a subset of MangoDB aggregation pipeline JSON with support of following stages : 
 
 1. $lookup: Joins another collection :.
@@ -117,14 +116,14 @@ The syntax to query is a subset of MangoDB aggregation pipeline JSON with suppor
   - "foreignField" must be "_id"
   - "as" defines an alias used in subsequent $match and $lookup stages as a prefix (e.g., alias.field).
 2. $match: Filter documents using comparison and logical operators.
-  - Supports: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $regex{', $text' if support_full_text else ''}
+  - Supports: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $regex in addition to $text for collections that support full text search.
   - Field references can include lookup aliases via dot notation, e.g. "user.name"
 3. $sort: Sorts the result. Keys must map to model fields.
 4. $limit: Truncates the result set to the specified number of items.
 5. $project: Selects specific fields for results. Only "flat" objects are supported.
    Value is either a number/boolean to include/exclude the field or a string starting in format 
    "$<lookupAlias>.<field>" to project a field from a previous $lookup stage.  
-{'6. $search: Full-text search on a field. Limited to \{"text":\{"query":...\}\}.' if support_full_text else ''}
+6. $search: For collection that support full-text search. Limited to {"text":{"query":"<keyword>"}}.
 """
 
 def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
