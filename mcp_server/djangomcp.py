@@ -312,10 +312,11 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
     def get_instructions(self):
         """ Generates the instructions, you can add extra instructions with the
         extra_instructions attribute. Doc string of the class is included if set"""
-        instructions = self.__doc__ or f"A tool to query '{self.model._meta.model_name}' collection"
-        ret = f"""{instructions}.
+        # TODO: exclude fields whose FKs are not published
+        base_instructions = self.__doc__ or f"A tool to query '{self.model._meta.model_name}' collection"
+        ret = f"""{base_instructions}.
 {pipeline_dsl_spec(bool(self._text_search_fields))}
-
+{'Prefer full text search using $search or $text when you need fuzzy, case insensitive match\n' if self._text_search_fields else ''} 
 # JSON schemas involved:
 
 ## {self.model._meta.model_name} (the main queried collection)
@@ -324,7 +325,6 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
                       exclude=self.exclude_fields.get(self.model))}
 ```
 """
-
         for model in self.extra_published_models:
             ret += f"""
 ## {model._meta.model_name}
@@ -342,7 +342,7 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
 """
         return ret
 
-    def query(self, search_pipeline: list[dict] = None) -> list[dict]:
+    def query(self, search_pipeline: list[dict] = []) -> list[dict]:
         qs = self.get_queryset()
 
         return list(apply_json_mango_query(qs, search_pipeline,

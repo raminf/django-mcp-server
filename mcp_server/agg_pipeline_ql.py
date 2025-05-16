@@ -140,6 +140,7 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
     :param text_search_fields: List of field names to apply `$text` full-text search to. Use "*" to apply to all CharField and TextField fields of the model. Required if `$text` is used.
     :return: an iterable (eventually the queryset) of JSON results.
     """
+
     if extended_operators is None:
         extended_operators = []
 
