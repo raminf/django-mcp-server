@@ -6,9 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="d88231da-2855-41e6-b975-0ce1ddba6c01" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp_server/djangomcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/djangomcp.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test/test_agent/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/test_agent/agent.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -66,7 +63,7 @@
       <recent name="C:\Git\gts\django-mcp-server" />
     </key>
   </component>
-  <component name="RunManager" selected="Shell Script.mcp inspector">
+  <component name="RunManager" selected="Python.mcpexample runserver">
     <configuration name="Unnamed" type="CompoundRunConfigurationType">
       <method v="2" />
     </configuration>
