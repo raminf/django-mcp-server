@@ -60,7 +60,12 @@ class _SyncToolCallWrapper:
         functools.update_wrapper(self, fn)
 
     def __call__(self, *args, **kwargs):
-        ret = self.fn(*args, **kwargs)
+        try:
+            ret = self.fn(*args, **kwargs)
+        except:
+            # TODO create kind of exception like "ToolError" that is logged only debug
+            logger.exception("Error in tool invocation")
+            raise
         if isinstance(ret, QuerySet):
             ret = list(ret)
         serializer_class = getattr(self.fn, '__dmcp_drf_serializer', None)
@@ -383,8 +388,8 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
                f"[the supported subset of MongoDB aggregation pipeline syntax]"
                f"(#mongodb-aggregation-pipeline-syntax-supported).")
         if getattr(settings, 'DJANGO_MCP_GET_SERVER_INSTRUCTIONS_TOOL', True):
-            ret += ("Use the `get_instructions_and_schemas` tool to obtain the shemas "
-                    "and query syntax guidance if you don't have already.")
+            ret += ("You MUST call `get_instructions_and_schemas` tool at least once before you use this tool. And MUST respect"
+                    "PRECISELY the pipline syntax constraints and Schemas it returns.")
         if self.get_text_search_fields():
             ret += "Full text search is supported on the following fields: " + ", ".join(self.get_text_search_fields()) + "."
         else:

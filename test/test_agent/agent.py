@@ -14,7 +14,6 @@ root_agent = LlmAgent(
     instruction=(
         "You are a helpful agent who tries to help user as much as you can with the tools you have "
         "access to. Tools are safe to as many times as desired without asking user."
-        "Start by calling the get_instructions_and_schemas tool to gain knowledge of the datamodel."
     ),
     tools=[MCPToolset(
       connection_params=StreamableHTTPServerParams(

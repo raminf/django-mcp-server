@@ -5,12 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d88231da-2855-41e6-b975-0ce1ddba6c01" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/test/test_agent_25/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/test/test_agent_25/agent.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/mcpexample/mcpexample/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/mcpexample/settings.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/mcp_server/djangomcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/djangomcp.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test/test_agent/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/test/test_agent/agent.py" afterDir="false" />
@@ -48,7 +44,7 @@
     "Python.mcp.executor": "Run",
     "Python.mcpexample makemigrations.executor": "Run",
     "Python.mcpexample migrate.executor": "Run",
-    "Python.mcpexample runserver.executor": "Debug",
+    "Python.mcpexample runserver.executor": "Run",
     "Python.test_mcp_client.executor": "Run",
     "Python.test_mcp_server 8002.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -70,7 +66,7 @@
       <recent name="C:\Git\gts\django-mcp-server" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.mcpexample runserver">
+  <component name="RunManager" selected="Shell Script.mcp inspector">
     <configuration name="Unnamed" type="CompoundRunConfigurationType">
       <method v="2" />
     </configuration>

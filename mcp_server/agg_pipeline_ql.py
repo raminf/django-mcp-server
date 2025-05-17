@@ -176,7 +176,7 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
             match_stage = stage["$match"]
             if "$text" in match_stage:
                 if not text_search_fields:
-                    raise ValueError("$text used but text_search_fields is not defined.")
+                    raise ValueError("$text used but full text search is not supported for this collection.")
                 search_value = match_stage["$text"].get("$search", "")
                 del match_stage["$text"]
                 q = _build_text_search_q(search_value, text_search_fields)
@@ -188,13 +188,13 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
         elif "$search" in stage:
             search = stage["$search"]
             if not text_search_fields:
-                raise ValueError("$search used but text_search_fields is not defined.")
+                raise ValueError("$search used but full text search is not supported for thsi collection.")
             search_value = search["text"]["query"]
             path = search["text"].get("path", text_search_fields)
             search_fields = [path] if isinstance(path, str) else path
 
             if not all(f in text_search_fields for f in search_fields):
-                raise ValueError("$search path contains fields not in text_search_fields")
+                raise ValueError("$search path contains fields that are not allowed for search")
             q = _build_text_search_q(search_value, search_fields)
             queryset = queryset.filter(q)
         elif "$sort" in stage:
@@ -208,7 +208,10 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
             queryset = queryset[:stage["$limit"]]
         elif "$project" in stage:
             projection_fields, projection_mapping = _interpret_projection(stage["$project"], lookup_alias_map)
-
+        elif "$lookup" in stage:
+            continue
+        else:
+            raise ValueError(f"Unsupported stage {stage} : please review pipeline syntax constraints")
     if skip_value is not None:
         queryset = queryset[skip_value:]
 
@@ -268,7 +271,7 @@ def _restore_field_path(field, lookup_map):
 def _validate_lookup(model, lookup, allowed_models, lookup_map):
     from_model_name = lookup["from"]
     if allowed_models is not None and from_model_name.lower() not in allowed_models:
-        raise ValueError(f"Lookup from model '{from_model_name}' is not allowed.")
+        raise ValueError(f"Invalid lookup from collection '{from_model_name}'  : please reveiw schemas.")
 
     local_field_name = _translate_field(lookup["localField"], lookup_map)
     foreign_field_name = lookup["foreignField"]
@@ -278,14 +281,14 @@ def _validate_lookup(model, lookup, allowed_models, lookup_map):
     try:
         local_field = base_model._meta.get_field(field_name)
     except Exception:
-        raise ValueError(f"Field '{field_name}' does not exist in model '{base_model.__name__}'.")
+        raise ValueError(f"Invalid localField '{lookup['localField']}' : please review supported pipeline syntax and  schemas for {base_model._meta.model_name}.'.")
 
     if not local_field.is_relation or not local_field.many_to_one:
-        raise ValueError(f"Field '{field_name}' is not a ForeignKey.")
+        raise ValueError(f"Invalid localField '{lookup['localField']}' : is not a reference, please review supported pipeline syntax and  schemas for {base_model._meta.model_name}.")
 
     related_model = local_field.related_model
-    if foreign_field_name != related_model._meta.pk.name and foreign_field_name != "_id":
-        raise ValueError(f"Foreign field '{foreign_field_name}' is not the primary key of model '{from_model_name}'.")
+    if foreign_field_name != related_model._meta.pk.name and foreign_field_name != "_id" and foreign_field_name != "pk":
+        raise ValueError(f"Invalid foreignField '{lookup['foreignField']}': please review supported pipeline syntax and  schemas for {base_model._meta.model_name}.")
 
 
 def _resolve_model_from_path(model, field_path, lookup_map):
@@ -327,10 +330,10 @@ def _parse_match(match, extended_operators, lookup_map, text_search_fields=None)
                     elif op_name in extended_operators:
                         key = f"{field}__{op_name}"
                     else:
-                        raise ValueError(f"Unsupported operator: {op}")
+                        raise ValueError(f"Unsupported operator {op} : please reveiwe pipeline syntax constraints ")
                     q &= Q(**{key: value})
                 else:
-                    raise ValueError(f"Unknown match key: {op}")
+                    raise ValueError(f"Unknown match key: {op} : please reveiwe pipeline syntax constraints")
         else:
             q &= Q(**{field: condition})
     return q
@@ -346,7 +349,6 @@ def _translate_field(field, lookup_map):
         else:
             raise ValueError(f"Unknown lookup alias '{alias}', ensure it appears in the 'as' field of a previous $lookup")
     return field
-
 
 
 def _build_text_search_q(search_value, fields):
