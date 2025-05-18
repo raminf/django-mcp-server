@@ -216,3 +216,84 @@ class JSONQueryTest(TestCase):
             ],
             text_search_fields=['species','location__name']
         )
+
+    def test_group_aggregations(self):
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "location",
+                    "localField": "location",
+                    "foreignField": "_id",
+                    "as": "loc"
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "city",
+                    "localField": "loc.city",
+                    "foreignField": "_id",
+                    "as": "city"
+                }
+            },{
+                "$group": {
+                    "_id": "$city.country",
+                    "total": {"$sum": "$count"},
+                    "average": {"$avg": "$count"},
+                    "max_count": {"$max": "$count"},
+                    "min_count": {"$min": "$count"},
+                    "count": {"$count": 1}
+                }
+            }
+        ]
+        result = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all(), pipeline)
+        result = list(result)
+        self.assertEqual(len(result), 2)  # Expect 2 distinct countries
+        for row in result:
+            self.assertTrue("city" in row and "country" in row["city"])
+            self.assertEqual(set(row.keys()), {"total", "average", "count", "max_count", "min_count", "city"})
+            if row["city"]["country"] == "USA":
+                self.assertEqual(34, row["total"])
+                self.assertEqual(10, row["max_count"])
+                self.assertEqual(1, row["min_count"])
+                self.assertEqual(6, row["count"] )
+                self.assertEqual(5.666666666666667, row["average"])
+
+
+    def test_group_aggregations(self):
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "location",
+                    "localField": "location",
+                    "foreignField": "_id",
+                    "as": "loc"
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "city",
+                    "localField": "loc.city",
+                    "foreignField": "_id",
+                    "as": "city"
+                }
+            },{
+                "$group": {
+                    "_id": None,
+                    "total": {"$sum": "$count"},
+                    "average": {"$avg": "$count"},
+                    "max_count": {"$max": "$count"},
+                    "min_count": {"$min": "$count"},
+                    "count": {"$count": 1}
+                }
+            }
+        ]
+        result = agg_pipeline_ql.apply_json_mango_query(Bird.objects.all(), pipeline)
+        result = list(result)
+        self.assertEqual(len(result), 1)  # Expect 2 distinct countries
+        row = result[0]
+        self.assertEqual(set(row.keys()), {"total", "average", "count", "max_count", "min_count"})
+        self.assertEqual(46, row["total"])
+        self.assertEqual(10, row["max_count"])
+        self.assertEqual(1, row["min_count"])
+        self.assertEqual(9, row["count"] )
+        self.assertEqual(5.111111111111111, row["average"])

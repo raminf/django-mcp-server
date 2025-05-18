@@ -1,6 +1,7 @@
 from django.db import models
-from django.db.models import Q, QuerySet
+from django.db.models import Q, QuerySet, Count, Sum
 from django.db.models import CharField, TextField
+from django.db.models import Avg, Max, Min
 
 """
     Tools to generate MongoDB-style $jsonSchema from Django models
@@ -124,6 +125,11 @@ The syntax to query is a subset of MangoDB aggregation pipeline JSON with suppor
    Value is either a number/boolean to include/exclude the field or a string starting in format 
    "$<lookupAlias>.<field>" to project a field from a previous $lookup stage.  
 6. $search: For collection that support full-text search. Limited to {"text":{"query":"<keyword>"}}.
+7. $group: Groups the result set by a field and applies aggregations.
+     - It must be the **final** stage in the pipeline.
+     - You cannot have a $project stage in the pipeline.
+     - `_id` can be null for global aggregation or a $<field> reference of a single field or lookup field.
+     - Supported accumulator operators: `$sum`, `$avg`, `$min`, `$max` and `$count`
 """
 
 def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
@@ -171,7 +177,7 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
     projection_mapping = None
     skip_value = None
 
-    for stage in pipeline:
+    for i, stage in enumerate(pipeline):
         if "$match" in stage:
             match_stage = stage["$match"]
             if "$text" in match_stage:
@@ -185,6 +191,7 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
                 queryset = queryset.filter(q)
             else:
                 queryset = queryset.filter(_parse_match(stage["$match"], extended_operators, lookup_alias_map, text_search_fields=[]))
+
         elif "$search" in stage:
             search = stage["$search"]
             if not text_search_fields:
@@ -197,21 +204,90 @@ def apply_json_mango_query(queryset: QuerySet, pipeline: list[dict],
                 raise ValueError("$search path contains fields that are not allowed for search")
             q = _build_text_search_q(search_value, search_fields)
             queryset = queryset.filter(q)
+
         elif "$sort" in stage:
             order = []
             for field, direction in stage["$sort"].items():
                 order.append(field if direction == 1 else f"-{field}")
             queryset = queryset.order_by(*order)
+
         elif "$skip" in stage:
             skip_value = stage["$skip"]
+
         elif "$limit" in stage:
             queryset = queryset[:stage["$limit"]]
+
         elif "$project" in stage:
+            if any("$group" in s for s in pipeline[i+1:]):
+                raise ValueError("$project cannot appear when pipeline contains $group :"
+                                 " please review pipeline syntax constriants.")
             projection_fields, projection_mapping = _interpret_projection(stage["$project"], lookup_alias_map)
+
+        elif "$group" in stage:
+            if i != len(pipeline) - 1:
+                raise ValueError("$group must be the last stage in the pipeline.:"
+                                 " please review pipeline syntax constriants.")
+
+            group = stage["$group"]
+            group_id = group["_id"]
+            annotations = {}
+
+            for key, agg in group.items():
+                if key == "_id":
+                    continue
+                if not isinstance(agg, dict) or len(agg) != 1:
+                    raise ValueError(f'Aggregation for key {key} can only be a JSON object of format \{"$<operator>": "<parameter>"\}.')
+                op, arg = next(iter(agg.items()))
+                if op == "$sum":
+                    if arg == 1:
+                        annotations[key] = Count("id")
+                    elif isinstance(arg, str) and arg.startswith("$"):
+                        annotations[key] = Sum(_translate_field(arg[1:], lookup_alias_map))
+                    else:
+                        raise ValueError("$sum only supports 1 or field references.")
+                elif op == "$avg":
+                    if isinstance(arg, str) and arg.startswith("$"):
+                        annotations[key] = Avg(_translate_field(arg[1:], lookup_alias_map))
+                    else:
+                        raise ValueError("$avg requires a field reference.")
+                elif op == "$min":
+                    if isinstance(arg, str) and arg.startswith("$"):
+                        annotations[key] = Min(_translate_field(arg[1:], lookup_alias_map))
+                    else:
+                        raise ValueError("$min requires a field reference.")
+                elif op == "$max":
+                    if isinstance(arg, str) and arg.startswith("$"):
+                        annotations[key] = Max(_translate_field(arg[1:], lookup_alias_map))
+                    else:
+                        raise ValueError("$max requires a field reference.")
+
+                elif op == "$count":
+                    if arg == 1:
+                        annotations[key] = Count("id")
+                    elif isinstance(arg, str) and arg.startswith("$"):
+                        annotations[key] = Count(_translate_field(arg[1:], lookup_alias_map))
+                    else:
+                        raise ValueError("$count only supports value 1 or a field reference.")
+                else:
+                    raise ValueError(f"Unsupported aggregation operator: {op}")
+
+            if group_id is None:
+                return [queryset.aggregate(**annotations)]
+            elif isinstance(group_id, str) and group_id.startswith("$"):
+                group_field = _translate_field(group_id[1:], lookup_alias_map)
+                mapping = dict((k,k) for k in group.keys() if k != "_id")
+                mapping[group_id[1:]] = group_field
+
+                return _postprocess_projection(queryset.values(group_field).annotate(**annotations), mapping)
+            else:
+                raise ValueError("Unsupported _id value in $group. Only null or single field allowed.")
+
         elif "$lookup" in stage:
             continue
+
         else:
             raise ValueError(f"Unsupported stage {stage} : please review pipeline syntax constraints")
+
     if skip_value is not None:
         queryset = queryset[skip_value:]
 
