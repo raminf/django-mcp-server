@@ -1,10 +1,10 @@
 from rest_framework.serializers import ModelSerializer
 
-from mcp_server import MCPToolset, drf_serialize_output, drf_publish_create_mcp_tool
+from mcp_server import MCPToolset, drf_serialize_output, drf_publish_create_mcp_tool, drf_publish_update_mcp_tool
 from mcp_server import ModelQueryToolset
 from .models import Bird, Location, City
 from .serializers import BirdSerializer
-from .views import LocationAPIView
+from .views import LocationAPIView, LocationAPIUpdateView
 
 
 class BirdQuery(ModelQueryToolset):
@@ -64,3 +64,5 @@ async def get_species_count(name : str):
 
 
 drf_publish_create_mcp_tool(LocationAPIView)
+
+drf_publish_update_mcp_tool(LocationAPIUpdateView)

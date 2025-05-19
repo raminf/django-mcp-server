@@ -22,3 +22,10 @@ class LocationAPIView(CreateAPIView):
     API view to retrieve, update or delete a Location instance.
     """
     serializer_class = LocationSerializer
+
+class LocationAPIUpdateView(UpdateAPIView):
+    """
+    API view to update a Location instance.
+    """
+    queryset = Location.objects.all()
+    serializer_class = LocationSerializer
