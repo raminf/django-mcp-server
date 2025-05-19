@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from rest_framework.generics import UpdateAPIView, RetrieveUpdateDestroyAPIView, CreateAPIView
+from rest_framework.mixins import DestroyModelMixin
 from rest_framework.serializers import ModelSerializer
 
 from mcp_server import drf_publish_create_mcp_tool
@@ -23,9 +24,11 @@ class LocationAPIView(CreateAPIView):
     """
     serializer_class = LocationSerializer
 
-class LocationAPIUpdateView(UpdateAPIView):
+class LocationAPIUpdateView(RetrieveUpdateDestroyAPIView):
     """
-    API view to update a Location instance.
+    API view to update / deslete a Location instance.
     """
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
+
+
