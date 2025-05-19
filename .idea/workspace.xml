@@ -6,8 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="d88231da-2855-41e6-b975-0ce1ddba6c01" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/tests.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/agg_pipeline_ql.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/mcp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/mcpexample/bird_counter/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/mcpexample/bird_counter/views.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp_server/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mcp_server/djangomcp.py" beforeDir="false" afterPath="$PROJECT_DIR$/mcp_server/djangomcp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,7 +46,7 @@
     "Python.mcp.executor": "Run",
     "Python.mcpexample makemigrations.executor": "Run",
     "Python.mcpexample migrate.executor": "Run",
-    "Python.mcpexample runserver.executor": "Run",
+    "Python.mcpexample runserver.executor": "Debug",
     "Python.test_mcp_client.executor": "Run",
     "Python.test_mcp_server 8002.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -65,7 +68,7 @@
       <recent name="C:\Git\gts\django-mcp-server" />
     </key>
   </component>
-  <component name="RunManager" selected="Shell Script.adk web 8001">
+  <component name="RunManager" selected="Python.mcpexample runserver">
     <configuration name="Unnamed" type="CompoundRunConfigurationType">
       <method v="2" />
     </configuration>

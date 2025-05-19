@@ -1,10 +1,12 @@
 import contextvars
 import functools
 import inspect
+import json
 import logging
 from collections import defaultdict
 from functools import cached_property
 from importlib import import_module
+from typing import Any
 
 import anyio
 from asgiref.sync import sync_to_async
@@ -20,6 +22,8 @@ from django.http import HttpResponse, HttpRequest
 from asgiref.compatibility import guarantee_single_callable
 from asgiref.wsgi import WsgiToAsgi
 from mcp.types import AnyFunction, ToolAnnotations
+from rest_framework.generics import GenericAPIView
+from rest_framework.mixins import RetrieveModelMixin, CreateModelMixin
 from rest_framework.serializers import Serializer
 from starlette.types import Scope, Receive, Send
 from starlette.datastructures import Headers
@@ -229,6 +233,23 @@ class DjangoMCP(FastMCP):
     def register_mcptoolset_cls(self, cls):
         cls()._add_tools_to(self._tool_manager)
 
+    def register_drf_create_tool(self, view_class: type(GenericAPIView), name=None, instructions=None):
+        assert instructions or view_class.__doc__, "You need to provide instructions or the class must have a docstring"
+
+        async def _dumb_create(body: dict):
+            pass
+
+        tool = self._tool_manager.add_tool(
+            fn=_dumb_create,
+            name=name or f"{view_class.__name__}_CreateTool",
+            description=instructions or view_class.__doc__
+        )
+        tool.fn = sync_to_async(_DRFCreateAPIViewCallerTool(self, view_class))
+
+        # Extract schema for a specific serializer manually
+        tool.parameters['properties']['body'] = view_class.schema.map_serializer(view_class.serializer_class())
+
+
 
 global_mcp_server = DjangoMCP(**getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', {}))
 
@@ -324,7 +345,7 @@ class ModelQueryToolset(metaclass=ToolsetMeta):
     """List of fields to exclude from the schema. Related fields to collections that are not published"
     in any other ModelQueryTool of same server will be autoamtically excluded"""
 
-    fields: list[str] = []
+    fields: list[str] = None
     "The list of fields to include"
 
     search_fields: list[str] = None
@@ -488,3 +509,85 @@ Documents conform the following JSON Schema
                       exclude=cls.get_excluded_fields())}
 ```
 """)
+
+
+class _DRFRequestWrapper(HttpRequest):
+
+    def __init__(self, mcp_server, mcp_request, method, body_json=None, id=None):
+        super().__init__()
+        serialized_body = json.dumps(body_json).encode("utf-8") if body_json else b''
+        self.method = method
+        self.content_type = "application/json"
+        self.META = {
+            'CONTENT_TYPE': 'application/json',
+            'HTTP_ACCEPT': 'application/json',
+            'CONTENT_LENGTH': len(serialized_body)
+        }
+
+        self._stream = BytesIO(serialized_body)
+        self._read_started = False
+        self.user = mcp_request.user
+        self.session = mcp_request.session
+        self.path = f'/_djangomcpserver/{mcp_server.name}'
+        if id:
+            self.path += f"/{id}"
+
+
+class _DRFCreateAPIViewCallerTool:
+    def __init__(self, mcp_server, view_class):
+        if not issubclass(view_class, CreateModelMixin):
+            raise ValueError(f"{view_class} must be a subclass of DRF CreateModelMixin")
+        self.mcp_server = mcp_server
+        self.view_class = view_class
+        def raise_exception(exp):
+            raise exp
+        # Disable built in tauth
+        self.view = view_class.as_view(filter_backends=[], authentication_classes=[],
+                                       handle_exception=raise_exception)
+
+    def __call__(self, body: dict):
+        # Create a request
+        request = _DRFRequestWrapper(self.mcp_server, django_request_ctx.get(), "POST", id=id, body_json=body)
+
+        # Create the view
+        try:
+            return self.view(request).data
+        except:
+            logger.exception("Error in DRF tool invocation")
+            raise
+
+
+class _DRFUpdateAPIViewCallerTool:
+    def __init__(self, mcp_server, view_class):
+        if not issubclass(view_class, CreateModelMixin):
+            raise ValueError(f"{view_class} must be a subclass of DRF CreateModelMixin")
+        self.mcp_server = mcp_server
+        self.view_class = view_class
+        self.view = view_class.as_view(filter_backends=[])
+
+    def __call__(self, id, body: dict):
+        # Create a request
+        request = _DRFRequestWrapper(self.mcp_server, django_request_ctx.get(), "PUT", id=id, body_json=body)
+
+        # Create the view
+        response = self.view(request, **{(self.view_class.lookup_url_kwarg or self.view_class.lookup_field): id})
+        return response.data
+
+
+def drf_publish_create_mcp_tool(*args, name=None, instructions=None, server=None):
+    """
+    Function or Decorator to register a DRF RetrieveModelMixin view as a MCP Toolset.
+
+    :param instructions: Instructions to provide to the MCP client.
+    :param server: The server to use, if not set, the global one will be used.
+    :return:
+    """
+    assert len(args) <= 1, "You must provide the DRF view or nothing as argument"
+    def decorator(view_class):
+        (server or global_mcp_server).register_drf_create_tool(view_class, name=name, instructions=instructions)
+        return view_class
+
+    if args:
+        decorator(args[0])
+    else:
+        return decorator
