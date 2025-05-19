@@ -9,6 +9,7 @@
 **Django MCP Server** is an implementation of the **Model Context Protocol (MCP)** extension for Django. This module allows **MCP Clients** and **AI agents** to interact with **any Django application** seamlessly.
 
 🚀 Django-Style declarative style-tool tool to Query Django Models and call custom logic by AI Agents and MCP clients
+🚀 Convert Django Rest Framework APIs to MCP tools with one annotation.
 ✅ Working on all apps (WSGI and ASGI) without infrastructure change.  
 🤖 Any MCP Client, (Google Agent Developement Kit, Claude Desktop ...) can interact with your application.
 
@@ -185,6 +186,49 @@ and `/path/to/your/project/` is the path to your django project.
 
 
 ## Advanced topics
+
+### Publish Django Rest Framework APIs as MCP Tools
+
+You can use `drf_publish_create_mcp_tool` / `drf_publish_update_mcp_tool` / `drf_publish_delete_mcp_tool` as
+annotations or method calls to register DRF CreateModelMixin / UpdateModelMixin / DestroyModelMixin based views
+to MCP tools seamlessly. Django MCP Server will generate the schemas to allow MCP Clients to use them.
+
+```python
+from mcp_server import drf_publish_create_mcp_tool
+
+@drf_publish_create_mcp_tool
+class MyModelView(CreateAPIView):
+    """
+    A view to create MyModel instances
+    """
+    serializer_class=MySerializer
+
+```
+notice that the docstring of the view is used as instructions for the model.
+You can better tune this like :
+
+```python
+@drf_publish_create_mcp_tool(instructions="Use this view to create instances of MyModel")
+class MyModelView(CreateAPIView):
+    """
+    A view to create MyModel instances
+    """
+    serializer_class=MySerializer
+
+```
+
+Finally, you can register after hand in mcp.py for example with: 
+
+```python
+drf_publish_update_mcp_tool(MyDRFAPIView, instructions="Use this tool to update my model, but use it with care")
+```
+
+
+**IMPORTANT** Notice that **builti-in authentication classes are disabled** along with filter_backends, that's because
+the MCP authentication is used. 
+
+
+
 
 ### Django Rest Framework Serializer integration
 
