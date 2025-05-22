@@ -209,7 +209,8 @@ class DjangoMCP(FastMCP):
         result = anyio.run(_call_starlette_handler, request, self.session_manager)
         request.session.save()
         result.headers[MCP_SESSION_ID_HDR]=request.session.session_key
-        delattr(request, 'session')
+        if hasattr(request, 'session'):
+            delattr(request, 'session')
 
         return result
 
