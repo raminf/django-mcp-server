@@ -207,9 +207,10 @@ class DjangoMCP(FastMCP):
                 return HttpResponse(status=400, content="Session required for stateful server")
 
         result = anyio.run(_call_starlette_handler, request, self.session_manager)
-        request.session.save()
-        result.headers[MCP_SESSION_ID_HDR]=request.session.session_key
+
         if hasattr(request, 'session'):
+            request.session.save()
+            result.headers[MCP_SESSION_ID_HDR] = request.session.session_key
             delattr(request, 'session')
 
         return result
