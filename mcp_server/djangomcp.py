@@ -6,7 +6,7 @@ import logging
 from collections import defaultdict
 from functools import cached_property
 from importlib import import_module
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Type
 
 import anyio
 from asgiref.sync import sync_to_async
@@ -22,7 +22,6 @@ from django.http import HttpResponse, HttpRequest
 from asgiref.compatibility import guarantee_single_callable
 from asgiref.wsgi import WsgiToAsgi
 from mcp.types import AnyFunction, ToolAnnotations
-from rest_framework.generics import GenericAPIView
 from rest_framework.mixins import RetrieveModelMixin, CreateModelMixin, UpdateModelMixin, DestroyModelMixin
 from rest_framework.serializers import Serializer
 from starlette.types import Scope, Receive, Send
@@ -235,7 +234,7 @@ class DjangoMCP(FastMCP):
     def register_mcptoolset_cls(self, cls):
         cls()._add_tools_to(self._tool_manager)
 
-    def register_drf_update_tool(self, view_class: type("GenericAPIView"), name=None, instructions=None):
+    def register_drf_update_tool(self, view_class: Type[GenericAPIView], name=None, instructions=None):
         assert instructions or view_class.__doc__, "You need to provide instructions or the class must have a docstring"
 
         async def _dumb_create(body: dict):
@@ -251,7 +250,7 @@ class DjangoMCP(FastMCP):
         # Extract schema for a specific serializer manually
         tool.parameters['properties']['body'] = view_class.schema.map_serializer(view_class.serializer_class())
 
-    def register_drf_update_tool(self, view_class: type("GenericAPIView"), name=None, instructions=None):
+    def register_drf_update_tool(self, view_class: Type[GenericAPIView], name=None, instructions=None):
         assert instructions or view_class.__doc__, "You need to provide instructions or the class must have a docstring"
 
         async def _dumb_update(id, body: dict):
@@ -267,7 +266,7 @@ class DjangoMCP(FastMCP):
         # Extract schema for a specific serializer manually
         tool.parameters['properties']['body'] = view_class.schema.map_serializer(view_class.serializer_class())
 
-    def register_drf_destroy_tool(self, view_class: type("GenericAPIView"), name=None, instructions=None):
+    def register_drf_destroy_tool(self, view_class: Type[GenericAPIView], name=None, instructions=None):
         assert instructions or view_class.__doc__, "You need to provide instructions or the class must have a docstring"
 
         async def _dumb_delete(id):
