@@ -25,8 +25,21 @@ from mcp_server.views import MCPServerStreamableHttpView
 
 # Register MCP Server View and bypass default DRF default permission / authentication classes
 urlpatterns = [
+    # Original MCP endpoint for JSON-RPC calls
     path("mcp", MCPServerStreamableHttpView.as_view(
         permission_classes=[IsAuthenticated] if getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', None) else [],
         authentication_classes=[import_string(cls) for cls in getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', [])]
     ), name="mcp_server_streamable_http_endpoint"),
-]
+    
+    # SSE endpoint for Server-Sent Events
+    path("mcp/sse", MCPServerStreamableHttpView.as_view(
+        permission_classes=[IsAuthenticated] if getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', None) else [],
+        authentication_classes=[import_string(cls) for cls in getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', [])]
+    ), name="mcp_server_sse_endpoint"),
+    
+    # Messages endpoint for SSE message posting
+    path("mcp/messages/", MCPServerStreamableHttpView.as_view(
+        permission_classes=[IsAuthenticated] if getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', None) else [],
+        authentication_classes=[import_string(cls) for cls in getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', [])]
+    ), name="mcp_server_messages_endpoint"),
+] 
