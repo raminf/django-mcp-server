@@ -208,7 +208,7 @@ class DjangoMCP(FastMCP):
 
         result = anyio.run(_call_starlette_handler, request, self.session_manager)
 
-        if hasattr(request, 'session'):
+        if not self.stateless and hasattr(request, 'session'):
             try:
                 request.session.save()
                 result.headers[MCP_SESSION_ID_HDR] = request.session.session_key
@@ -219,14 +219,10 @@ class DjangoMCP(FastMCP):
         return result
 
     def destroy_session(self, request):
-        try:
-            if hasattr(request, 'session'):
-                session_key = request.headers.get(MCP_SESSION_ID_HDR)
-                if not self.stateless and session_key:
-                    self.SessionStore(session_key).flush()
-                    request.session = None
-        except Exception as e:
-            pass
+        session_key = request.headers.get(MCP_SESSION_ID_HDR)
+        if not self.stateless and session_key:
+            self.SessionStore(session_key).flush()
+            request.session = None
 
     def append_instructions(self, new_instructions):
         """
