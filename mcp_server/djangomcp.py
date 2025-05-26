@@ -175,6 +175,7 @@ class DjangoMCP(FastMCP):
         # Prevent extra server settings as we do not use the embedded server
         super().__init__(name or "django_mcp_server", instructions)
         self.stateless=stateless
+        self.transport_mode = transport_mode
         engine = import_module(settings.SESSION_ENGINE)
         self.SessionStore = engine.SessionStore
 
