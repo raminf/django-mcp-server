@@ -133,3 +133,14 @@ DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
 DJANGO_MCP_AUTHENTICATION_CLASSES = ["rest_framework.authentication.TokenAuthentication"]
 
 DJANGO_MCP_GET_SERVER_INSTRUCTIONS_TOOL = True
+
+# REST Framework configuration to handle MCP content types
+REST_FRAMEWORK = {
+    'DEFAULT_CONTENT_NEGOTIATION_CLASS': 'rest_framework.content_negotiation.DefaultContentNegotiation',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+    ],
+}
