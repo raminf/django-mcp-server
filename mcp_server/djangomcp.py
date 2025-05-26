@@ -171,7 +171,7 @@ MCP_SESSION_ID_HDR="Mcp-Session-Id"
 # Stuff pulled to support embedded server ?
 class DjangoMCP(FastMCP):
 
-    def __init__(self, name=None, instructions=None, stateless=False):
+     def __init__(self, name=None, instructions=None, stateless=False, transport_mode='sse'):
         # Prevent extra server settings as we do not use the embedded server
         super().__init__(name or "django_mcp_server", instructions)
         self.stateless=stateless
