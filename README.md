@@ -290,7 +290,8 @@ passed to the `MCPServer` server during initialization
 DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
     "name":"mymcp",
     "instructions": "Some instructions to use this server",
-    "stateless": False
+    "stateless": False,
+    'transport_mode': 'http',  # 'sse' or 'http'
 }
 ```
 
@@ -420,6 +421,28 @@ Refer to this [list of clients](https://modelcontextprotocol.io/clients)
 - 🔜 **Improved error management and logging**
 
 ---
+## Transport Modes
+
+The django-mcp-server supports two transport modes:
+
+### SSE (Server-Sent Events) - Default
+- Endpoint: `/mcp/sse`
+- Content-Type: `text/event-stream`
+- Real-time bidirectional communication
+
+### HTTP Streaming
+- Endpoint: `/mcp/http`
+- Content-Type: `application/json-stream`
+- JSON-based streaming without SSE overhead
+
+### Configuration
+
+```python
+DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
+    'transport_mode': 'http',  # or 'sse'
+    # ... other config
+}
+```
 
 ## Issues
 
