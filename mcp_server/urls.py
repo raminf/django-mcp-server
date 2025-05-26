@@ -21,10 +21,18 @@ from django.utils.module_loading import import_string
 from rest_framework.permissions import IsAuthenticated
 
 from mcp_server.views import MCPServerStreamableHttpView, MCPServerStreamableHttpOnlyView
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """Simple health check endpoint"""
+    return JsonResponse({"status": "ok"})
 
 
 # Register MCP Server View and bypass default DRF default permission / authentication classes
 urlpatterns = [
+    # Health check endpoint
+    path("health/", health_check, name="health_check"),
     # Original MCP endpoint for JSON-RPC calls
     path("mcp", MCPServerStreamableHttpView.as_view(
         permission_classes=[IsAuthenticated] if getattr(settings, 'DJANGO_MCP_AUTHENTICATION_CLASSES', None) else [],

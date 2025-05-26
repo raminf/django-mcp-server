@@ -15,12 +15,28 @@ class MCPServerStreamableHttpView(APIView):
     mcp_server = global_mcp_server
 
     def dispatch(self, request, *args, **kwargs):
-        """Override dispatch to handle SSE requests before DRF content negotiation"""
+        """Override dispatch to handle SSE requests and mixed Accept headers before DRF content negotiation"""
         # Check if this is an SSE request by path or Accept header
         if (request.path.endswith('/sse') or 
             'text/event-stream' in request.headers.get('Accept', '')):
             # Handle SSE connection directly, bypassing DRF content negotiation
             return self._handle_sse_connection(request)
+        
+        # Check if Accept header contains text/event-stream but this is not an SSE endpoint
+        # This happens when MCP clients send mixed Accept headers to regular endpoints
+        accept_header = request.headers.get('Accept', '')
+        if 'text/event-stream' in accept_header and not request.path.endswith('/sse'):
+            # Remove text/event-stream from Accept header to avoid DRF 406 errors
+            # Keep only application/json and */* parts
+            accept_parts = [part.strip() for part in accept_header.split(',')]
+            filtered_parts = [part for part in accept_parts 
+                            if not part.startswith('text/event-stream')]
+            if filtered_parts:
+                # Create a new request with modified Accept header
+                request.META['HTTP_ACCEPT'] = ', '.join(filtered_parts)
+            else:
+                # Fallback to application/json if nothing else is acceptable
+                request.META['HTTP_ACCEPT'] = 'application/json'
         
         # For non-SSE requests, use normal DRF handling
         return super().dispatch(request, *args, **kwargs)
@@ -72,6 +88,27 @@ class MCPServerStreamableHttpView(APIView):
 class MCPServerStreamableHttpOnlyView(APIView):
     """MCP Server view that supports only streamable HTTP (no SSE)"""
     mcp_server = global_mcp_server
+
+    def dispatch(self, request, *args, **kwargs):
+        """Override dispatch to handle mixed Accept headers before DRF content negotiation"""
+        # Check if Accept header contains text/event-stream 
+        # This happens when MCP clients send mixed Accept headers to regular endpoints
+        accept_header = request.headers.get('Accept', '')
+        if 'text/event-stream' in accept_header:
+            # Remove text/event-stream from Accept header to avoid DRF 406 errors
+            # Keep only application/json and */* parts
+            accept_parts = [part.strip() for part in accept_header.split(',')]
+            filtered_parts = [part for part in accept_parts 
+                            if not part.startswith('text/event-stream')]
+            if filtered_parts:
+                # Create a new request with modified Accept header
+                request.META['HTTP_ACCEPT'] = ', '.join(filtered_parts)
+            else:
+                # Fallback to application/json if nothing else is acceptable
+                request.META['HTTP_ACCEPT'] = 'application/json'
+        
+        # Use normal DRF handling
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         # Handle streamable HTTP GET requests
