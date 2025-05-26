@@ -700,3 +700,14 @@ def drf_publish_destroy_mcp_tool(*args, name=None, instructions=None, server=Non
         decorator(args[0])
     else:
         return decorator
+
+# At the bottom of djangomcp.py
+config = getattr(settings, 'DJANGO_MCP_GLOBAL_SERVER_CONFIG', {})
+transport_mode = config.get('transport_mode', 'sse')  # Default to SSE for backward compatibility
+
+global_mcp_server = DjangoMCP(
+    name=config.get('name'),
+    instructions=config.get('instructions'),
+    stateless=config.get('stateless', False),
+    transport_mode=transport_mode
+)
